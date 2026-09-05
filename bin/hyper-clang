@@ -1,0 +1,96 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 roolrz
+# SPDX-License-Identifier: Apache-2.0
+
+set -eu
+
+script_directory=$(CDPATH='' cd -- "$(dirname "$0")" && pwd)
+default_sysroot=$(CDPATH='' cd -- "$script_directory/.." && pwd)
+architecture=${HYPER_ARCH:-aarch64}
+compiler=${HYPER_CLANG:-clang}
+sysroot=${HYPER_SYSROOT:-$default_sysroot}
+linking=true
+output=a.out
+expect_output=false
+
+for argument in "$@"; do
+    if [ "$expect_output" = true ]; then
+        output=$argument
+        expect_output=false
+        continue
+    fi
+    case "$argument" in
+        -c|-E|-S|-M|-MM)
+            linking=false
+            ;;
+        -o)
+            expect_output=true
+            ;;
+        -o?*)
+            output=${argument#-o}
+            ;;
+    esac
+done
+if [ "$expect_output" = true ]; then
+    echo "hyper-clang: -o requires a path" >&2
+    exit 2
+fi
+
+case "$architecture" in
+    aarch64)
+        target=aarch64-none-elf
+        ;;
+    *)
+        echo "hyper-clang: unsupported Native architecture: $architecture" >&2
+        exit 2
+        ;;
+esac
+
+if [ "$linking" = false ]; then
+    exec "$compiler" \
+        --target="$target" \
+        --sysroot="$sysroot" \
+        -ffreestanding \
+        -fPIE \
+        -ffunction-sections \
+        -fdata-sections \
+        -fvisibility=hidden \
+        -fno-stack-protector \
+        "$@"
+fi
+
+linker=${HYPER_LD:-}
+if [ -n "$linker" ]; then
+    linker_option=--ld-path="$linker"
+else
+    linker_option=-fuse-ld=lld
+fi
+linker_script=$sysroot/lib/hyper/$architecture/hyper-native.ld
+crt=$sysroot/lib/crt1.o
+brand=$sysroot/bin/hyper-brand-elf
+for required in "$linker_script" "$crt" "$brand"; do
+    if [ ! -f "$required" ]; then
+        echo "hyper-clang: incomplete Native sysroot: $required" >&2
+        exit 2
+    fi
+done
+
+"$compiler" \
+    --target="$target" \
+    --sysroot="$sysroot" \
+    "$linker_option" \
+    -ffreestanding \
+    -fPIE \
+    -ffunction-sections \
+    -fdata-sections \
+    -fvisibility=hidden \
+    -fno-stack-protector \
+    -nostdlib \
+    "$crt" \
+    "$@" \
+    -Wl,-static,-pie,--no-dynamic-linker,--no-undefined,--fatal-warnings \
+    -Wl,-Bsymbolic,-z,text,--entry=_start \
+    -Wl,--build-id=none,--gc-sections,-z,noexecstack,-z,max-page-size=4096 \
+    -Wl,-T,"$linker_script" \
+    -L"$sysroot/lib" -lhyper
+"$brand" "$output"
