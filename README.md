@@ -15,11 +15,11 @@ the assembled SDK output and do not reach back into these source directories.
 
 ## Current scope
 
-- AArch64 freestanding C compilation and static PIE linking through
-  `hyper-clang`;
+- AArch64 freestanding C and `no_std` Rust compilation with static PIE linking
+  through `hyper-clang` and `hyper-cargo`;
 - assembly from one coherent repository revision;
-- assembly of Native headers, `crt1.o`, `libhyper.a`, and the linker contract
-  into a sysroot;
+- assembly of Native headers, Rust OS-binding crates, `crt1.o`, `libhyper.a`,
+  and the linker contract into a sysroot;
 - checked HypeR ELF branding after every application link; and
 - compile-time and link-time consumer smoke tests.
 
@@ -46,6 +46,7 @@ available on `PATH`.
 
 - `sdk/abi/` owns machine-visible syscall values and layouts.
 - `sdk/lib/` owns Native C runtime semantics.
+- `sdk/rust/` owns raw and safe Native Rust bindings plus language entry.
 - `sdk/toolchain/` owns compiler and SDK assembly mechanics.
 - The repository root owns integration and release composition.
 - Linux, FreeBSD, and POSIX compatibility remain separate personalities outside

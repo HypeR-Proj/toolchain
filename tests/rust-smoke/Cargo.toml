@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 roolrz
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "hyper-rust-smoke"
+version = "0.0.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+[[bin]]
+name = "hyper-rust-smoke"
+path = "src/main.rs"
+test = false
+bench = false
+
+[dependencies]
+hyper-os = "=0.0.0"
+hyper-rt = "=0.0.0"
+
+[profile.release]
+panic = "abort"

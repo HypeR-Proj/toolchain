@@ -4,14 +4,15 @@
 
 set -eu
 
-if [ "$#" -ne 3 ]; then
-    echo "usage: build-sysroot.sh ABI_SOURCE LIB_SOURCE OUTPUT" >&2
+if [ "$#" -ne 4 ]; then
+    echo "usage: build-sysroot.sh ABI_SOURCE LIB_SOURCE RUST_SOURCE OUTPUT" >&2
     exit 2
 fi
 
 abi_source=$1
 lib_source=$2
-output=$3
+rust_source=$3
+output=$4
 script_directory=$(CDPATH='' cd -- "$(dirname "$0")" && pwd)
 repository=$(CDPATH='' cd -- "$script_directory/.." && pwd)
 
@@ -21,6 +22,10 @@ if [ ! -f "$abi_source/include/hyper/native.h" ]; then
 fi
 if [ ! -f "$lib_source/CMakeLists.txt" ]; then
     echo "build-sysroot.sh: Lib source does not contain CMakeLists.txt" >&2
+    exit 2
+fi
+if [ ! -f "$rust_source/Cargo.toml" ]; then
+    echo "build-sysroot.sh: Rust source does not contain Cargo.toml" >&2
     exit 2
 fi
 if [ -z "$output" ] || [ "$output" = / ]; then
@@ -99,6 +104,7 @@ cmake --install "$build_directory" --prefix "$staged_output"
 install -d "$staged_output/include/hyper" "$staged_output/bin"
 install -m 0644 "$abi_source/include/hyper/native.h" "$staged_output/include/hyper/native.h"
 install -m 0755 "$repository/bin/hyper-clang" "$staged_output/bin/hyper-clang"
+install -m 0755 "$repository/bin/hyper-cargo" "$staged_output/bin/hyper-cargo"
 install -d "$staged_output/lib/hyper/aarch64"
 install -m 0644 "$repository/lib/aarch64/hyper-native.ld" \
     "$staged_output/lib/hyper/aarch64/hyper-native.ld"
@@ -111,12 +117,34 @@ case "$abi_revision" in
         exit 2
         ;;
 esac
+install_rust_crate() {
+    source=$1
+    destination=$2
+    install -d "$destination/src"
+    install -m 0644 "$source/Cargo.toml" "$destination/Cargo.toml"
+    for source_file in "$source"/src/*.rs; do
+        install -m 0644 "$source_file" "$destination/src/$(basename "$source_file")"
+    done
+}
+
+# Rust consumers compile SDK crates with their pinned compiler. Install source
+# rather than compiler-version-specific rlibs, preserving only declared crate
+# boundaries and excluding generator and build artifacts.
+install_rust_crate "$abi_source" "$staged_output/share/hyper/abi"
+install -d "$staged_output/share/hyper/rust"
+install -m 0644 "$rust_source/Cargo.toml" "$staged_output/share/hyper/rust/Cargo.toml"
+install_rust_crate "$rust_source/hyper-sys" "$staged_output/share/hyper/rust/hyper-sys"
+install_rust_crate "$rust_source/hyper-os" "$staged_output/share/hyper/rust/hyper-os"
+install_rust_crate "$rust_source/hyper-rt" "$staged_output/share/hyper/rust/hyper-rt"
+
 install -d "$staged_output/share/hyper"
 {
     printf 'sdk-version=%s\n' "$sdk_version"
     printf 'source-revision=%s\n' "$source_revision"
     printf 'host=%s-%s\n' "$(uname -s)" "$(uname -m)"
     printf 'target=aarch64-none-elf\n'
+    printf 'rust-target=aarch64-unknown-none\n'
+    printf 'rust-bindings=hyper-os-0.0.0\n'
     printf 'abi-revision=%s\n' "$abi_revision"
 } > "$staged_output/share/hyper/manifest"
 "$host_compiler" -std=c17 -Wall -Wextra -Werror \

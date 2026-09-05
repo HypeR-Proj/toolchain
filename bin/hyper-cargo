@@ -1,0 +1,90 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 roolrz
+# SPDX-License-Identifier: Apache-2.0
+
+# Build one Rust Native application exclusively against an assembled HypeR SDK.
+set -eu
+
+script_directory=$(CDPATH='' cd -- "$(dirname "$0")" && pwd)
+default_sysroot=$(CDPATH='' cd -- "$script_directory/.." && pwd)
+architecture=${HYPER_ARCH:-aarch64}
+sysroot=${HYPER_SYSROOT:-$default_sysroot}
+cargo=${HYPER_CARGO_DRIVER:-cargo}
+
+if [ "$#" -eq 0 ]; then
+    echo "usage: hyper-cargo {build|check|clippy|rustc} [ARGUMENT ...]" >&2
+    exit 2
+fi
+subcommand=$1
+shift
+case "$subcommand" in
+    build | check | clippy | rustc) ;;
+    *)
+        echo "hyper-cargo: unsupported Cargo subcommand: $subcommand" >&2
+        exit 2
+        ;;
+esac
+for argument in "$@"; do
+    case "$argument" in
+        --target | --target=*)
+            echo "hyper-cargo: the Native target is selected by HYPER_ARCH" >&2
+            exit 2
+            ;;
+    esac
+done
+
+case "$architecture" in
+    aarch64)
+        target=aarch64-unknown-none
+        target_table=target.aarch64-unknown-none
+        ;;
+    *)
+        echo "hyper-cargo: unsupported Native architecture: $architecture" >&2
+        exit 2
+        ;;
+esac
+
+# Cargo resolves linker paths from the application workspace. Normalize the
+# SDK root once so invocation location cannot change the selected toolchain.
+if [ ! -d "$sysroot" ]; then
+    echo "hyper-cargo: Native SDK directory does not exist: $sysroot" >&2
+    exit 2
+fi
+sysroot=$(CDPATH='' cd -- "$sysroot" && pwd)
+rust_sdk=$sysroot/share/hyper/rust
+for required in \
+    "$sysroot/bin/hyper-clang" \
+    "$sysroot/share/hyper/abi/Cargo.toml" \
+    "$rust_sdk/hyper-os/Cargo.toml" \
+    "$rust_sdk/hyper-rt/Cargo.toml" \
+    "$rust_sdk/hyper-sys/Cargo.toml"; do
+    if [ ! -f "$required" ]; then
+        echo "hyper-cargo: incomplete Native Rust SDK: $required" >&2
+        exit 2
+    fi
+done
+
+# Cargo's command-line configuration uses TOML literal strings. Reject the two
+# byte classes that could escape a generated path instead of constructing an
+# ambiguous configuration.
+case "$sysroot" in
+    *"'"* | *"
+"*)
+        echo "hyper-cargo: SDK path contains an unsupported character" >&2
+        exit 2
+        ;;
+esac
+
+export HYPER_ARCH="$architecture"
+export HYPER_SYSROOT="$sysroot"
+
+exec "$cargo" \
+    "$subcommand" \
+    --config "$target_table.linker = '$sysroot/bin/hyper-clang'" \
+    --config "$target_table.rustflags = ['-C', 'linker-flavor=gcc', '-C', 'relocation-model=pic', '-C', 'panic=abort']" \
+    --config "patch.crates-io.hyper-abi.path = '$sysroot/share/hyper/abi'" \
+    --config "patch.crates-io.hyper-os.path = '$rust_sdk/hyper-os'" \
+    --config "patch.crates-io.hyper-rt.path = '$rust_sdk/hyper-rt'" \
+    --config "patch.crates-io.hyper-sys.path = '$rust_sdk/hyper-sys'" \
+    --target "$target" \
+    "$@"

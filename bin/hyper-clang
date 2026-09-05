@@ -79,6 +79,7 @@ done
     --target="$target" \
     --sysroot="$sysroot" \
     "$linker_option" \
+    -Wno-unused-command-line-argument \
     -ffreestanding \
     -fPIE \
     -ffunction-sections \
