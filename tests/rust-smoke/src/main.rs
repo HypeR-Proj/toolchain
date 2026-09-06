@@ -8,7 +8,10 @@ use hyper_os::startup::Startup;
 use hyper_rt::ExitCode;
 
 fn application_main(startup: Startup<'_>) -> ExitCode {
-    if hyper_os::require_core_abi().is_err() || startup.console().is_err() {
+    if hyper_os::require_core_abi().is_err()
+        || startup.console().is_err()
+        || hyper_service::stdio::STANDARD_OUTPUT.as_raw() == 0
+    {
         return ExitCode::FAILURE;
     }
     ExitCode::SUCCESS

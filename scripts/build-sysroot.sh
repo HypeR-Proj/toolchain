@@ -136,6 +136,7 @@ install -m 0644 "$rust_source/Cargo.toml" "$staged_output/share/hyper/rust/Cargo
 install_rust_crate "$rust_source/hyper-sys" "$staged_output/share/hyper/rust/hyper-sys"
 install_rust_crate "$rust_source/hyper-os" "$staged_output/share/hyper/rust/hyper-os"
 install_rust_crate "$rust_source/hyper-rt" "$staged_output/share/hyper/rust/hyper-rt"
+install_rust_crate "$rust_source/hyper-service" "$staged_output/share/hyper/rust/hyper-service"
 
 install -d "$staged_output/share/hyper"
 {

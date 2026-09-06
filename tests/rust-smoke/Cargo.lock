@@ -29,6 +29,14 @@ version = "0.0.0"
 dependencies = [
  "hyper-os",
  "hyper-rt",
+ "hyper-service",
+]
+
+[[package]]
+name = "hyper-service"
+version = "0.0.0"
+dependencies = [
+ "hyper-os",
 ]
 
 [[package]]

@@ -17,6 +17,7 @@ bench = false
 [dependencies]
 hyper-os = "=0.0.0"
 hyper-rt = "=0.0.0"
+hyper-service = "=0.0.0"
 
 [profile.release]
 panic = "abort"
