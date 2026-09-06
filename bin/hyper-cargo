@@ -12,13 +12,13 @@ sysroot=${HYPER_SYSROOT:-$default_sysroot}
 cargo=${HYPER_CARGO_DRIVER:-cargo}
 
 if [ "$#" -eq 0 ]; then
-    echo "usage: hyper-cargo {build|check|clippy|rustc} [ARGUMENT ...]" >&2
+    echo "usage: hyper-cargo {build|check|clippy|generate-lockfile|rustc} [ARGUMENT ...]" >&2
     exit 2
 fi
 subcommand=$1
 shift
 case "$subcommand" in
-    build | check | clippy | rustc) ;;
+    build | check | clippy | generate-lockfile | rustc) ;;
     *)
         echo "hyper-cargo: unsupported Cargo subcommand: $subcommand" >&2
         exit 2
@@ -77,6 +77,16 @@ esac
 
 export HYPER_ARCH="$architecture"
 export HYPER_SYSROOT="$sysroot"
+
+if [ "$subcommand" = generate-lockfile ]; then
+    exec "$cargo" \
+        "$subcommand" \
+        --config "patch.crates-io.hyper-abi.path = '$sysroot/share/hyper/abi'" \
+        --config "patch.crates-io.hyper-os.path = '$rust_sdk/hyper-os'" \
+        --config "patch.crates-io.hyper-rt.path = '$rust_sdk/hyper-rt'" \
+        --config "patch.crates-io.hyper-sys.path = '$rust_sdk/hyper-sys'" \
+        "$@"
+fi
 
 exec "$cargo" \
     "$subcommand" \
