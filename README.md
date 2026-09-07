@@ -7,26 +7,30 @@ SPDX-License-Identifier: Apache-2.0
 
 HypeR Toolchain turns LLVM/Clang and the in-tree Native ABI and runtime sources
 into a consumable Native application SDK. It owns
-compiler-driver defaults, target profiles, sysroot assembly, and the static PIE
-link and startup contract.
+compiler-driver defaults, target profiles, sysroot assembly, and the dynamic
+PIE link and startup contract.
 
 The top-level build owns product composition. System applications consume only
 the assembled SDK output and do not reach back into these source directories.
 
 ## Current scope
 
-- AArch64 freestanding C and `no_std` Rust compilation with static PIE linking
-  through `hyper-clang` and `hyper-cargo`;
+- AArch64 freestanding C and `no_std` Rust compilation with dynamic PIE linking
+  through `hyper-clang` and `hyper-cargo`, shared-object linking through
+  `hyper-clang -shared`, and explicitly selectable static PIE linking;
 - assembly from one coherent repository revision;
-- assembly of Native headers, Rust OS-binding crates, `crt1.o`, `libhyper.a`,
-  and the linker contract into a sysroot;
+- assembly of Native headers, Rust OS-binding crates, CRT objects,
+  `libhyper.a`, `libhyper.so`, the Native interpreter, and the linker contract
+  into a sysroot;
 - checked HypeR ELF branding after every application link; and
 - compile-time and link-time consumer smoke tests.
 
-Native images are little-endian AArch64 `ET_DYN` files with no interpreter,
-undefined symbols, writable executable segment, or executable stack. The
-driver uses LLD, links at zero for Kernel-selected relocation, and validates
-the completed image before applying the HypeR OSABI identity.
+Native images are little-endian AArch64 `ET_DYN` files. Dynamic executables use
+`/lib/ld-hyper-aarch64.so`, eager binding, and `libhyper.so`; static
+images use `libhyper.a` and no interpreter. Both modes reject
+writable-executable segments and executable stacks. The driver uses LLD, links
+at zero for Kernel-selected placement, and validates the completed image before
+applying the HypeR OSABI identity.
 
 ## Build a sysroot
 
@@ -46,6 +50,7 @@ available on `PATH`.
 
 - `sdk/abi/` owns machine-visible syscall values and layouts.
 - `sdk/lib/` owns Native C runtime semantics.
+- `sdk/loader/` owns userspace ELF dependency and relocation policy.
 - `sdk/rust/` owns raw and safe Native Rust bindings plus language entry.
 - `sdk/toolchain/` owns compiler and SDK assembly mechanics.
 - The repository root owns integration and release composition.

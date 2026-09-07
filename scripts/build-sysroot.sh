@@ -4,15 +4,16 @@
 
 set -eu
 
-if [ "$#" -ne 4 ]; then
-    echo "usage: build-sysroot.sh ABI_SOURCE LIB_SOURCE RUST_SOURCE OUTPUT" >&2
+if [ "$#" -ne 5 ]; then
+    echo "usage: build-sysroot.sh ABI_SOURCE LIB_SOURCE LOADER_SOURCE RUST_SOURCE OUTPUT" >&2
     exit 2
 fi
 
 abi_source=$1
 lib_source=$2
-rust_source=$3
-output=$4
+loader_source=$3
+rust_source=$4
+output=$5
 script_directory=$(CDPATH='' cd -- "$(dirname "$0")" && pwd)
 repository=$(CDPATH='' cd -- "$script_directory/.." && pwd)
 
@@ -22,6 +23,10 @@ if [ ! -f "$abi_source/include/hyper/native.h" ]; then
 fi
 if [ ! -f "$lib_source/CMakeLists.txt" ]; then
     echo "build-sysroot.sh: Lib source does not contain CMakeLists.txt" >&2
+    exit 2
+fi
+if [ ! -f "$loader_source/CMakeLists.txt" ]; then
+    echo "build-sysroot.sh: Loader source does not contain CMakeLists.txt" >&2
     exit 2
 fi
 if [ ! -f "$rust_source/Cargo.toml" ]; then
@@ -42,6 +47,7 @@ compiler=${CLANG:-clang}
 host_compiler=${HOST_CC:-clang}
 archiver=${LLVM_AR:-llvm-ar}
 archive_indexer=${LLVM_RANLIB:-llvm-ranlib}
+linker=${HYPER_LD:-ld.lld}
 sdk_version=${HYPER_SDK_VERSION:-source}
 source_revision=${HYPER_SDK_SOURCE_REVISION:-unknown}
 for value in "$sdk_version" "$source_revision"; do
@@ -96,18 +102,36 @@ cmake -S "$lib_source" -B "$build_directory" \
     -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
     -DCMAKE_C_COMPILER_TARGET=aarch64-none-elf \
     -DCMAKE_ASM_COMPILER_TARGET=aarch64-none-elf \
+    -DHYPER_LD="$linker" \
     -DHYPER_ARCH=aarch64 \
     -DHYPER_ABI_INCLUDE_DIR="$abi_source/include"
 cmake --build "$build_directory"
 cmake --install "$build_directory" --prefix "$staged_output"
 
-install -d "$staged_output/include/hyper" "$staged_output/bin"
+install -d "$staged_output/include/hyper"
 install -m 0644 "$abi_source/include/hyper/native.h" "$staged_output/include/hyper/native.h"
-install -m 0755 "$repository/bin/hyper-clang" "$staged_output/bin/hyper-clang"
-install -m 0755 "$repository/bin/hyper-cargo" "$staged_output/bin/hyper-cargo"
 install -d "$staged_output/lib/hyper/aarch64"
 install -m 0644 "$repository/lib/aarch64/hyper-native.ld" \
     "$staged_output/lib/hyper/aarch64/hyper-native.ld"
+
+loader_build_directory=$transaction/loader-build
+cmake -S "$loader_source" -B "$loader_build_directory" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER="$compiler" \
+    -DCMAKE_ASM_COMPILER="$compiler" \
+    -DCMAKE_SYSTEM_NAME=Generic \
+    -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+    -DCMAKE_C_COMPILER_TARGET=aarch64-none-elf \
+    -DCMAKE_ASM_COMPILER_TARGET=aarch64-none-elf \
+    -DHYPER_LD="$linker" \
+    -DHYPER_ARCH=aarch64 \
+    -DHYPER_SYSROOT="$staged_output"
+cmake --build "$loader_build_directory"
+cmake --install "$loader_build_directory" --prefix "$staged_output"
+
+install -d "$staged_output/bin"
+install -m 0755 "$repository/bin/hyper-clang" "$staged_output/bin/hyper-clang"
+install -m 0755 "$repository/bin/hyper-cargo" "$staged_output/bin/hyper-cargo"
 abi_revision=$(sed -n \
     's/^#define HYPER_NATIVE_ABI_REVISION UINT64_C(\([0-9][0-9]*\))$/\1/p' \
     "$abi_source/include/hyper/native.h")
@@ -151,6 +175,8 @@ install -d "$staged_output/share/hyper"
 "$host_compiler" -std=c17 -Wall -Wextra -Werror \
     -I"$abi_source/include" "$repository/tools/brand-elf.c" \
     -o "$staged_output/bin/hyper-brand-elf"
+"$staged_output/bin/hyper-brand-elf" "$staged_output/lib/libhyper.so"
+"$staged_output/bin/hyper-brand-elf" "$staged_output/lib/ld-hyper-aarch64.so"
 
 # No existing sysroot is touched until every compiler and install succeeds.
 if [ -e "$output" ] || [ -L "$output" ]; then

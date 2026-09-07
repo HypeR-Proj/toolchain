@@ -10,6 +10,8 @@ architecture=${HYPER_ARCH:-aarch64}
 compiler=${HYPER_CLANG:-clang}
 sysroot=${HYPER_SYSROOT:-$default_sysroot}
 linking=true
+link_mode=${HYPER_LINK_MODE:-dynamic}
+output_kind=executable
 output=a.out
 expect_output=false
 
@@ -22,6 +24,12 @@ for argument in "$@"; do
     case "$argument" in
         -c|-E|-S|-M|-MM)
             linking=false
+            ;;
+        -static)
+            link_mode=static
+            ;;
+        -shared)
+            output_kind=shared
             ;;
         -o)
             expect_output=true
@@ -47,11 +55,15 @@ case "$architecture" in
 esac
 
 if [ "$linking" = false ]; then
+    position_independent=-fPIE
+    if [ "$output_kind" = shared ]; then
+        position_independent=-fPIC
+    fi
     exec "$compiler" \
         --target="$target" \
         --sysroot="$sysroot" \
         -ffreestanding \
-        -fPIE \
+        "$position_independent" \
         -ffunction-sections \
         -fdata-sections \
         -fvisibility=hidden \
@@ -67,31 +79,52 @@ else
 fi
 linker_script=$sysroot/lib/hyper/$architecture/hyper-native.ld
 crt=$sysroot/lib/crt1.o
+crt_support=$sysroot/lib/crt.o
 brand=$sysroot/bin/hyper-brand-elf
-for required in "$linker_script" "$crt" "$brand"; do
+for required in "$linker_script" "$crt" "$crt_support" "$brand"; do
     if [ ! -f "$required" ]; then
         echo "hyper-clang: incomplete Native sysroot: $required" >&2
         exit 2
     fi
 done
 
-"$compiler" \
-    --target="$target" \
-    --sysroot="$sysroot" \
-    "$linker_option" \
-    -Wno-unused-command-line-argument \
-    -ffreestanding \
-    -fPIE \
-    -ffunction-sections \
-    -fdata-sections \
-    -fvisibility=hidden \
-    -fno-stack-protector \
-    -nostdlib \
-    "$crt" \
-    "$@" \
-    -Wl,-static,-pie,--no-dynamic-linker,--no-undefined,--fatal-warnings \
-    -Wl,-Bsymbolic,-z,text,--entry=_start \
-    -Wl,--build-id=none,--gc-sections,-z,noexecstack,-z,max-page-size=4096 \
-    -Wl,-T,"$linker_script" \
-    -L"$sysroot/lib" -lhyper
+if [ "$output_kind" = shared ]; then
+    if [ "$link_mode" = static ]; then
+        echo "hyper-clang: static shared objects are unsupported" >&2
+        exit 2
+    fi
+    "$compiler" \
+        --target="$target" --sysroot="$sysroot" "$linker_option" \
+        -Wno-unused-command-line-argument -ffreestanding -fPIC \
+        -ffunction-sections -fdata-sections -fvisibility=hidden \
+        -fno-stack-protector -nostdlib "$@" \
+        -Wl,-shared,--no-undefined,--fatal-warnings,-z,text,-z,relro,-z,now \
+        -Wl,--build-id=none,--gc-sections,-z,noexecstack,-z,max-page-size=4096 \
+        -Wl,--hash-style=sysv,--as-needed,--entry=0 \
+        -L"$sysroot/lib" -Wl,-Bdynamic -lhyper
+elif [ "$link_mode" = static ]; then
+    "$compiler" \
+        --target="$target" --sysroot="$sysroot" "$linker_option" \
+        -Wno-unused-command-line-argument -ffreestanding -fPIE \
+        -ffunction-sections -fdata-sections -fvisibility=hidden \
+        -fno-stack-protector -nostdlib "$crt" "$crt_support" "$@" \
+        -Wl,-static,-pie,--no-dynamic-linker,--no-undefined,--fatal-warnings \
+        -Wl,-Bsymbolic,-z,text,--entry=_start \
+        -Wl,--build-id=none,--gc-sections,-z,noexecstack,-z,max-page-size=4096 \
+        -Wl,-T,"$linker_script" -L"$sysroot/lib" -lhyper
+elif [ "$link_mode" = dynamic ]; then
+    "$compiler" \
+        --target="$target" --sysroot="$sysroot" "$linker_option" \
+        -Wno-unused-command-line-argument -ffreestanding -fPIE \
+        -ffunction-sections -fdata-sections -fvisibility=hidden \
+        -fno-stack-protector -nostdlib "$crt" "$crt_support" "$@" \
+        -Wl,-pie,--dynamic-linker=/lib/ld-hyper-aarch64.so \
+        -Wl,--no-undefined,--fatal-warnings,-z,text,-z,relro,-z,now \
+        -Wl,--build-id=none,--gc-sections,-z,noexecstack,-z,max-page-size=4096 \
+        -Wl,--hash-style=sysv,--entry=_start,--as-needed \
+        -L"$sysroot/lib" -Wl,-Bdynamic -lhyper
+else
+    echo "hyper-clang: HYPER_LINK_MODE must be dynamic or static" >&2
+    exit 2
+fi
 "$brand" "$output"

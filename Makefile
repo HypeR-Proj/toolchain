@@ -3,10 +3,12 @@
 
 ABI_SOURCE ?=
 LIB_SOURCE ?=
+LOADER_SOURCE ?=
 RUST_SOURCE ?=
 OUTPUT ?= target/sysroot/aarch64
 TEST_OUTPUT ?= target/tests/aarch64
 SMOKE_SOURCE ?= tests/smoke.c
+SHARED_SMOKE_SOURCE ?= tests/shared-smoke.c
 RUST_SMOKE_MANIFEST ?= tests/rust-smoke/Cargo.toml
 
 .PHONY: verify-sources sysroot check test-publication clean
@@ -14,10 +16,11 @@ RUST_SMOKE_MANIFEST ?= tests/rust-smoke/Cargo.toml
 verify-sources:
 	@test -n "$(ABI_SOURCE)" || { echo "ABI_SOURCE is required" >&2; exit 2; }
 	@test -n "$(LIB_SOURCE)" || { echo "LIB_SOURCE is required" >&2; exit 2; }
+	@test -n "$(LOADER_SOURCE)" || { echo "LOADER_SOURCE is required" >&2; exit 2; }
 	@test -n "$(RUST_SOURCE)" || { echo "RUST_SOURCE is required" >&2; exit 2; }
 
 sysroot: verify-sources
-	sh scripts/build-sysroot.sh "$(ABI_SOURCE)" "$(LIB_SOURCE)" "$(RUST_SOURCE)" "$(OUTPUT)"
+	sh scripts/build-sysroot.sh "$(ABI_SOURCE)" "$(LIB_SOURCE)" "$(LOADER_SOURCE)" "$(RUST_SOURCE)" "$(OUTPUT)"
 
 check: sysroot test-publication
 	mkdir -p "$(TEST_OUTPUT)"
@@ -26,17 +29,45 @@ check: sysroot test-publication
 		-o "$(TEST_OUTPUT)/smoke.o"
 	HYPER_SYSROOT="$(abspath $(OUTPUT))" bin/hyper-clang \
 		"$(TEST_OUTPUT)/smoke.o" -o "$(TEST_OUTPUT)/smoke"
-	"$(OUTPUT)/bin/hyper-brand-elf" --check "$(TEST_OUTPUT)/smoke"
+	"$(OUTPUT)/bin/hyper-brand-elf" --check-dynamic "$(TEST_OUTPUT)/smoke"
+	HYPER_LINK_MODE=static HYPER_SYSROOT="$(abspath $(OUTPUT))" bin/hyper-clang \
+		"$(TEST_OUTPUT)/smoke.o" -o "$(TEST_OUTPUT)/smoke-static"
+	"$(OUTPUT)/bin/hyper-brand-elf" --check-static "$(TEST_OUTPUT)/smoke-static"
+	@if "$(OUTPUT)/bin/hyper-brand-elf" --check-static \
+		"$(TEST_OUTPUT)/smoke" >/dev/null 2>&1; then \
+		echo "dynamic executable passed the static link contract" >&2; exit 1; \
+	fi
+	@if "$(OUTPUT)/bin/hyper-brand-elf" --check-dynamic \
+		"$(TEST_OUTPUT)/smoke-static" >/dev/null 2>&1; then \
+		echo "static executable passed the dynamic link contract" >&2; exit 1; \
+	fi
+	HYPER_SYSROOT="$(abspath $(OUTPUT))" bin/hyper-clang \
+		-std=c17 -Wall -Wextra -Werror -shared \
+		-Wl,-soname,libhyper-smoke.so "$(SHARED_SMOKE_SOURCE)" \
+		-o "$(TEST_OUTPUT)/libhyper-smoke.so"
+	"$(OUTPUT)/bin/hyper-brand-elf" --check "$(TEST_OUTPUT)/libhyper-smoke.so"
 	CARGO_TARGET_DIR="$(abspath $(TEST_OUTPUT))/rust" \
 		HYPER_SYSROOT="$(abspath $(OUTPUT))" \
 		"$(OUTPUT)/bin/hyper-cargo" build \
 		--manifest-path "$(RUST_SMOKE_MANIFEST)" --release --locked --offline
-	"$(OUTPUT)/bin/hyper-brand-elf" --check \
+	"$(OUTPUT)/bin/hyper-brand-elf" --check-dynamic \
+		"$(TEST_OUTPUT)/rust/aarch64-unknown-none/release/hyper-rust-smoke"
+	CARGO_TARGET_DIR="$(abspath $(TEST_OUTPUT))/rust" \
+		HYPER_LINK_MODE=static HYPER_SYSROOT="$(abspath $(OUTPUT))" \
+		"$(OUTPUT)/bin/hyper-cargo" build \
+		--manifest-path "$(RUST_SMOKE_MANIFEST)" --release --locked --offline
+	"$(OUTPUT)/bin/hyper-brand-elf" --check-static \
+		"$(TEST_OUTPUT)/rust/aarch64-unknown-none/release/hyper-rust-smoke"
+	CARGO_TARGET_DIR="$(abspath $(TEST_OUTPUT))/rust" \
+		HYPER_SYSROOT="$(abspath $(OUTPUT))" \
+		"$(OUTPUT)/bin/hyper-cargo" build \
+		--manifest-path "$(RUST_SMOKE_MANIFEST)" --release --locked --offline
+	"$(OUTPUT)/bin/hyper-brand-elf" --check-dynamic \
 		"$(TEST_OUTPUT)/rust/aarch64-unknown-none/release/hyper-rust-smoke"
 	test -s "$(OUTPUT)/share/hyper/manifest"
 
 test-publication: verify-sources
-	sh tests/sysroot-publication.sh "$(ABI_SOURCE)" "$(LIB_SOURCE)" "$(RUST_SOURCE)"
+	sh tests/sysroot-publication.sh "$(ABI_SOURCE)" "$(LIB_SOURCE)" "$(LOADER_SOURCE)" "$(RUST_SOURCE)"
 
 clean:
 	rm -rf target

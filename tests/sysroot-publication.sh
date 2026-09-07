@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 set -eu
-if [ "$#" -ne 3 ]; then
-    echo "usage: sysroot-publication.sh ABI_SOURCE LIB_SOURCE RUST_SOURCE" >&2
+if [ "$#" -ne 4 ]; then
+    echo "usage: sysroot-publication.sh ABI_SOURCE LIB_SOURCE LOADER_SOURCE RUST_SOURCE" >&2
     exit 2
 fi
 repository=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
@@ -18,7 +18,7 @@ printf 'old header\n' > "$output/include/obsolete.h"
 mkdir -p "$output/share/hyper/rust"
 printf 'old Rust SDK file\n' > "$output/share/hyper/rust/obsolete.rs"
 # Fail at the final host-tool build, after staging installation has finished.
-if HOST_CC=false sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$output" > "$temporary/failure.log" 2>&1; then
+if HOST_CC=false sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$4" "$output" > "$temporary/failure.log" 2>&1; then
     echo "expected host compiler failure" >&2
     exit 1
 fi
@@ -27,7 +27,7 @@ test "$(cat "$output/include/obsolete.h")" = 'old header'
 test "$(cat "$output/share/hyper/rust/obsolete.rs")" = 'old Rust SDK file'
 test ! -e "$output/lib"
 test ! -e "$output.publish-lock"
-if ! sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$output" > "$temporary/success.log" 2>&1; then
+if ! sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$4" "$output" > "$temporary/success.log" 2>&1; then
     cat "$temporary/success.log" >&2
     exit 1
 fi
@@ -51,7 +51,7 @@ exec /bin/mv "$@"
 MOVE
 chmod +x "$temporary/bin/mv"
 printf 'preserved\n' > "$output/rollback-marker"
-if PATH="$temporary/bin:$PATH" sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$output" > "$temporary/rename.log" 2>&1; then
+if PATH="$temporary/bin:$PATH" sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$4" "$output" > "$temporary/rename.log" 2>&1; then
     echo "expected publication rename failure" >&2
     exit 1
 fi
@@ -60,7 +60,7 @@ test -f "$output/lib/libhyper.a"
 test ! -e "$output.publish-lock"
 # A second publisher must leave the completed output untouched.
 mkdir "$output.publish-lock"
-if sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$output" > "$temporary/locked.log" 2>&1; then
+if sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$4" "$output" > "$temporary/locked.log" 2>&1; then
     echo "concurrent publisher was not rejected" >&2
     exit 1
 fi
