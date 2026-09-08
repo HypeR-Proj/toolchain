@@ -30,6 +30,7 @@ dependencies = [
  "hyper-os",
  "hyper-rt",
  "hyper-service",
+ "hyper-vm-image",
 ]
 
 [[package]]
@@ -41,6 +42,13 @@ dependencies = [
 
 [[package]]
 name = "hyper-sys"
+version = "0.0.0"
+dependencies = [
+ "hyper-abi",
+]
+
+[[package]]
+name = "hyper-vm-image"
 version = "0.0.0"
 dependencies = [
  "hyper-abi",

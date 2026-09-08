@@ -161,6 +161,7 @@ install_rust_crate "$rust_source/hyper-sys" "$staged_output/share/hyper/rust/hyp
 install_rust_crate "$rust_source/hyper-os" "$staged_output/share/hyper/rust/hyper-os"
 install_rust_crate "$rust_source/hyper-rt" "$staged_output/share/hyper/rust/hyper-rt"
 install_rust_crate "$rust_source/hyper-service" "$staged_output/share/hyper/rust/hyper-service"
+install_rust_crate "$rust_source/hyper-vm-image" "$staged_output/share/hyper/rust/hyper-vm-image"
 
 install -d "$staged_output/share/hyper"
 {

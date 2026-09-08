@@ -18,6 +18,7 @@ bench = false
 hyper-os = "=0.0.0"
 hyper-rt = "=0.0.0"
 hyper-service = "=0.0.0"
+hyper-vm-image = "=0.0.0"
 
 [profile.release]
 panic = "abort"

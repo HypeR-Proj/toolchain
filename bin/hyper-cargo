@@ -74,6 +74,7 @@ for required in \
     "$rust_sdk/hyper-os/Cargo.toml" \
     "$rust_sdk/hyper-rt/Cargo.toml" \
     "$rust_sdk/hyper-service/Cargo.toml" \
+    "$rust_sdk/hyper-vm-image/Cargo.toml" \
     "$rust_sdk/hyper-sys/Cargo.toml"; do
     if [ ! -f "$required" ]; then
         echo "hyper-cargo: incomplete Native Rust SDK: $required" >&2
@@ -102,6 +103,7 @@ if [ "$subcommand" = generate-lockfile ]; then
         --config "patch.crates-io.hyper-os.path = '$rust_sdk/hyper-os'" \
         --config "patch.crates-io.hyper-rt.path = '$rust_sdk/hyper-rt'" \
         --config "patch.crates-io.hyper-service.path = '$rust_sdk/hyper-service'" \
+        --config "patch.crates-io.hyper-vm-image.path = '$rust_sdk/hyper-vm-image'" \
         --config "patch.crates-io.hyper-sys.path = '$rust_sdk/hyper-sys'" \
         "$@"
 fi
@@ -114,6 +116,7 @@ exec "$cargo" \
     --config "patch.crates-io.hyper-os.path = '$rust_sdk/hyper-os'" \
     --config "patch.crates-io.hyper-rt.path = '$rust_sdk/hyper-rt'" \
     --config "patch.crates-io.hyper-service.path = '$rust_sdk/hyper-service'" \
+    --config "patch.crates-io.hyper-vm-image.path = '$rust_sdk/hyper-vm-image'" \
     --config "patch.crates-io.hyper-sys.path = '$rust_sdk/hyper-sys'" \
     --target "$target" \
     "$@"

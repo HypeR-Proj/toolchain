@@ -39,6 +39,7 @@ test -x "$output/bin/hyper-brand-elf"
 test -x "$output/bin/hyper-cargo"
 test -f "$output/share/hyper/rust/hyper-os/Cargo.toml"
 test -f "$output/share/hyper/rust/hyper-service/Cargo.toml"
+test -f "$output/share/hyper/rust/hyper-vm-image/Cargo.toml"
 test ! -e "$output.publish-lock"
 # Fail the final rename after the old sysroot has moved to the backup.
 mkdir "$temporary/bin"
