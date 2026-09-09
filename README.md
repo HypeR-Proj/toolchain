@@ -46,6 +46,20 @@ compiler used to build tools that run during linking. Override `HYPER_LD`,
 `LLVM_AR`, and `LLVM_RANLIB` when the corresponding LLVM tools are not
 available on `PATH`.
 
+## Rust allocation support
+
+Native `hyper-cargo` builds rebuild `core` and `alloc` with the application's
+PIC and abort settings. The distributed bare-metal rlibs are not sufficient
+for the Native dynamic/static PIE relocation contract. The driver scopes
+`RUSTC_BOOTSTRAP=1` and `-Z build-std=core,alloc` to these builds, using the
+repository-pinned Rust compiler and `rust-src` component.
+
+SDK assembly fetches the dependencies pinned by rust-src's Cargo.lock so
+subsequent application builds can remain `--offline`. First-time SDK assembly
+therefore needs registry access (or a populated Cargo cache). No HypeR
+application dependency or Native binary ABI is added by rebuilding these
+compiler libraries.
+
 ## Component boundaries
 
 - `sdk/abi/` owns machine-visible syscall values and layouts.

@@ -92,6 +92,17 @@ transaction=$(mktemp -d "$output_parent/.hyper-sysroot.XXXXXX")
 build_directory=$transaction/build
 staged_output=$transaction/sysroot
 
+# Warm the pinned rust-src dependency graph before Native consumers use
+# --offline. Cargo's lockfile in rust-src fixes these compiler-library inputs.
+rust_sysroot=$(rustc --print sysroot)
+rust_library="$rust_sysroot/lib/rustlib/src/rust/library/sysroot/Cargo.toml"
+if [ ! -f "$rust_library" ]; then
+    echo "build-sysroot.sh: rust-src is required for the Native PIC runtime" >&2
+    exit 1
+fi
+RUSTC_BOOTSTRAP=1 "${HYPER_CARGO_DRIVER:-cargo}" fetch \
+    --manifest-path "$rust_library" --locked --target aarch64-unknown-none
+
 cmake -S "$lib_source" -B "$build_directory" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_C_COMPILER="$compiler" \
