@@ -35,6 +35,12 @@ fn main() {
     if args.panic {
         panic!("HYPER_STD_EXPECTED_PANIC");
     }
+    let startup = hyper_rt::process::startup().unwrap();
+    assert!(hyper_rt::process::startup().is_err());
+    assert!(hyper_rt::process::stdin().is_ok());
+    assert!(hyper_rt::process::stdout().is_ok());
+    assert!(hyper_rt::process::stderr().is_ok());
+    drop(startup); // The remaining I/O and TLS destructor still need these handles.
     COUNTER.with(|value| {
         value.set(42);
         assert_eq!(value.get(), 42);

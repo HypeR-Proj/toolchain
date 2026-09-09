@@ -105,10 +105,39 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
+name = "hyper-abi"
+version = "0.0.0"
+
+[[package]]
+name = "hyper-os"
+version = "0.0.0"
+dependencies = [
+ "hyper-abi",
+ "hyper-sys",
+]
+
+[[package]]
+name = "hyper-rt"
+version = "0.0.0"
+dependencies = [
+ "hyper-abi",
+ "hyper-os",
+ "hyper-sys",
+]
+
+[[package]]
 name = "hyper-std-smoke"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "hyper-rt",
+]
+
+[[package]]
+name = "hyper-sys"
+version = "0.0.0"
+dependencies = [
+ "hyper-abi",
 ]
 
 [[package]]
@@ -186,23 +215,7 @@ dependencies = [
 ]
 
 [[patch.unused]]
-name = "hyper-abi"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "hyper-os"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "hyper-rt"
-version = "0.0.0"
-
-[[patch.unused]]
 name = "hyper-service"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "hyper-sys"
 version = "0.0.0"
 
 [[patch.unused]]
