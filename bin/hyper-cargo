@@ -11,15 +11,16 @@ architecture=${HYPER_ARCH:-aarch64}
 sysroot=${HYPER_SYSROOT:-$default_sysroot}
 cargo=${HYPER_CARGO_DRIVER:-cargo}
 link_mode=${HYPER_LINK_MODE:-dynamic}
+rust_std=${HYPER_RUST_STD:-1}
 
 if [ "$#" -eq 0 ]; then
-    echo "usage: hyper-cargo {build|check|clippy|generate-lockfile|rustc} [ARGUMENT ...]" >&2
+    echo "usage: hyper-cargo {build|check|clippy|fetch|generate-lockfile|rustc} [ARGUMENT ...]" >&2
     exit 2
 fi
 subcommand=$1
 shift
 case "$subcommand" in
-    build | check | clippy | generate-lockfile | rustc) ;;
+    build | check | clippy | fetch | generate-lockfile | rustc) ;;
     *)
         echo "hyper-cargo: unsupported Cargo subcommand: $subcommand" >&2
         exit 2
@@ -96,7 +97,7 @@ esac
 export HYPER_ARCH="$architecture"
 export HYPER_SYSROOT="$sysroot"
 
-if [ "$subcommand" = generate-lockfile ]; then
+if [ "$subcommand" = generate-lockfile ] || [ "$subcommand" = fetch ]; then
     exec "$cargo" \
         "$subcommand" \
         --config "patch.crates-io.hyper-abi.path = '$sysroot/share/hyper/abi'" \
@@ -112,10 +113,33 @@ fi
 # Rebuild them with the same PIC/abort flags as the application. Scope Cargo's
 # unstable build-std opt-in to this driver; the repository pins rustc + rust-src.
 export RUSTC_BOOTSTRAP=1
+case "$rust_std" in
+    1)
+        target="$sysroot/share/hyper/targets/aarch64-unknown-hyper.json"
+        target_table=target.aarch64-unknown-hyper
+        export __CARGO_TESTS_ONLY_SRC_ROOT="$sysroot/share/hyper/rust-src/library"
+        if [ ! -f "$__CARGO_TESTS_ONLY_SRC_ROOT/std/src/sys/pal/hyper/mod.rs" ]; then
+            echo "hyper-cargo: Native std sources missing from SDK" >&2
+            exit 2
+        fi
+        if [ "$(rustc --version | cut -d ' ' -f 2)" != 1.97.1 ]; then
+            echo "hyper-cargo: this SDK requires rustc 1.97.1" >&2
+            exit 2
+        fi
+        # Cargo's source override and JSON targets are pinned unstable APIs.
+        set -- -Zjson-target-spec -Zbuild-std=std,panic_abort -Zbuild-std-features= "$@"
+        runtime_rustflags=", '-L', 'native=$sysroot/lib', '-C', 'link-arg=$sysroot/lib/crt-std.o'"
+        ;;
+    0)
+        set -- -Zbuild-std=core,alloc "$@"
+        runtime_rustflags=
+        ;;
+    *) echo "hyper-cargo: HYPER_RUST_STD must be 0 or 1" >&2; exit 2 ;;
+esac
 exec "$cargo" \
-    "$subcommand" -Z build-std=core,alloc \
+    "$subcommand" \
     --config "$target_table.linker = '$sysroot/bin/hyper-clang'" \
-    --config "$target_table.rustflags = ['-C', 'linker-flavor=gcc', '-C', 'relocation-model=pic', '-C', 'panic=abort'$link_mode_rustflags]" \
+    --config "$target_table.rustflags = ['-C', 'linker-flavor=gcc', '-C', 'relocation-model=pic', '-C', 'panic=abort'$link_mode_rustflags$runtime_rustflags]" \
     --config "patch.crates-io.hyper-abi.path = '$sysroot/share/hyper/abi'" \
     --config "patch.crates-io.hyper-os.path = '$rust_sdk/hyper-os'" \
     --config "patch.crates-io.hyper-rt.path = '$rust_sdk/hyper-rt'" \

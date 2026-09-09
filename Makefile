@@ -48,23 +48,25 @@ check: sysroot test-publication
 	"$(OUTPUT)/bin/hyper-brand-elf" --check "$(TEST_OUTPUT)/libhyper-smoke.so"
 	CARGO_TARGET_DIR="$(abspath $(TEST_OUTPUT))/rust" \
 		HYPER_SYSROOT="$(abspath $(OUTPUT))" \
-		"$(OUTPUT)/bin/hyper-cargo" build \
+		HYPER_RUST_STD=0 "$(OUTPUT)/bin/hyper-cargo" build \
 		--manifest-path "$(RUST_SMOKE_MANIFEST)" --release --locked --offline
 	"$(OUTPUT)/bin/hyper-brand-elf" --check-dynamic \
 		"$(TEST_OUTPUT)/rust/aarch64-unknown-none/release/hyper-rust-smoke"
 	CARGO_TARGET_DIR="$(abspath $(TEST_OUTPUT))/rust" \
 		HYPER_LINK_MODE=static HYPER_SYSROOT="$(abspath $(OUTPUT))" \
-		"$(OUTPUT)/bin/hyper-cargo" build \
+		HYPER_RUST_STD=0 "$(OUTPUT)/bin/hyper-cargo" build \
 		--manifest-path "$(RUST_SMOKE_MANIFEST)" --release --locked --offline
 	"$(OUTPUT)/bin/hyper-brand-elf" --check-static \
 		"$(TEST_OUTPUT)/rust/aarch64-unknown-none/release/hyper-rust-smoke"
 	CARGO_TARGET_DIR="$(abspath $(TEST_OUTPUT))/rust" \
 		HYPER_SYSROOT="$(abspath $(OUTPUT))" \
-		"$(OUTPUT)/bin/hyper-cargo" build \
+		HYPER_RUST_STD=0 "$(OUTPUT)/bin/hyper-cargo" build \
 		--manifest-path "$(RUST_SMOKE_MANIFEST)" --release --locked --offline
 	"$(OUTPUT)/bin/hyper-brand-elf" --check-dynamic \
 		"$(TEST_OUTPUT)/rust/aarch64-unknown-none/release/hyper-rust-smoke"
 	test -s "$(OUTPUT)/share/hyper/manifest"
+	sh scripts/check-rust-std.sh "$(OUTPUT)" "$(TEST_OUTPUT)/std" tests/std-smoke/Cargo.toml
+	sh scripts/check-std-sync.sh
 
 test-publication: verify-sources
 	sh tests/sysroot-publication.sh "$(ABI_SOURCE)" "$(LIB_SOURCE)" "$(LOADER_SOURCE)" "$(RUST_SOURCE)"

@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 roolrz
+# SPDX-License-Identifier: Apache-2.0
+
+{
+  "arch": "aarch64",
+  "crt-objects-fallback": "false",
+  "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32",
+  "default-uwtable": true,
+  "disable-redzone": true,
+  "features": "+v8a,+strict-align,+neon",
+  "linker": "hyper-clang",
+  "linker-flavor": "gnu-cc",
+  "llvm-target": "aarch64-unknown-none",
+  "max-atomic-width": 128,
+  "panic-strategy": "abort",
+  "relocation-model": "pic",
+  "stack-probes": {
+    "kind": "inline"
+  },
+  "supports-xray": true,
+  "target-pointer-width": 64,
+  "os": "hyper",
+  "vendor": "unknown",
+  "position-independent-executables": true,
+  "static-position-independent-executables": true,
+  "dynamic-linking": true,
+  "has-thread-local": false
+}

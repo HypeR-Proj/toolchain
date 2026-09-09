@@ -15,7 +15,7 @@ the assembled SDK output and do not reach back into these source directories.
 
 ## Current scope
 
-- AArch64 freestanding C and `no_std` Rust compilation with dynamic PIE linking
+- AArch64 freestanding C, `no_std` Rust, and partial Rust `std` compilation with dynamic PIE linking
   through `hyper-clang` and `hyper-cargo`, shared-object linking through
   `hyper-clang -shared`, and explicitly selectable static PIE linking;
 - assembly from one coherent repository revision;
@@ -48,7 +48,7 @@ available on `PATH`.
 
 ## Rust allocation support
 
-Native `hyper-cargo` builds rebuild `core` and `alloc` with the application's
+Freestanding (`HYPER_RUST_STD=0`) builds rebuild `core` and `alloc` with the application's
 PIC and abort settings. The distributed bare-metal rlibs are not sufficient
 for the Native dynamic/static PIE relocation contract. The driver scopes
 `RUSTC_BOOTSTRAP=1` and `-Z build-std=core,alloc` to these builds, using the
@@ -89,3 +89,10 @@ the sibling transaction directory and publication lock before retrying.
 
 `make sdk-check` also verifies stale-file removal, preservation of the previous
 sysroot after a compiler failure, and exclusion of a concurrent publisher.
+
+## Rust std platform support
+
+`hyper-cargo` defaults to `aarch64-unknown-hyper` with ordinary Rust `main()`.
+Set `HYPER_RUST_STD=0` for existing freestanding `hyper_rt::entry!` applications.
+The [Native std guide](rust-std/README.md) describes the pinned Rust source
+overlay, `libhyper-std.a`, supported APIs, and future thread syscall integration.

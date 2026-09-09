@@ -143,6 +143,15 @@ cmake --install "$loader_build_directory" --prefix "$staged_output"
 install -d "$staged_output/bin"
 install -m 0755 "$repository/bin/hyper-clang" "$staged_output/bin/hyper-clang"
 install -m 0755 "$repository/bin/hyper-cargo" "$staged_output/bin/hyper-cargo"
+install -d "$staged_output/share/hyper/rust-src" "$staged_output/share/hyper/targets"
+python3 "$repository/scripts/prepare-rust-std.py" \
+    "$rust_sysroot/lib/rustlib/src/rust/library" \
+    "$staged_output/share/hyper/rust-src/library" "$repository/rust-std/overlay"
+install -m 0644 "$rust_sysroot/share/doc/rust/COPYRIGHT-library.html" \
+    "$staged_output/share/hyper/rust-src/COPYRIGHT-library.html"
+cp -R "$rust_sysroot/share/doc/rust/licenses" "$staged_output/share/hyper/rust-src/licenses"
+sed '1,3d' "$repository/targets/aarch64-unknown-hyper.json.in" \
+    > "$staged_output/share/hyper/targets/aarch64-unknown-hyper.json"
 abi_revision=$(sed -n \
     's/^#define HYPER_NATIVE_ABI_REVISION UINT64_C(\([0-9][0-9]*\))$/\1/p' \
     "$abi_source/include/hyper/native.h")
@@ -181,6 +190,8 @@ install -d "$staged_output/share/hyper"
     printf 'host=%s-%s\n' "$(uname -s)" "$(uname -m)"
     printf 'target=aarch64-none-elf\n'
     printf 'rust-target=aarch64-unknown-none\n'
+    printf 'rust-std-target=aarch64-unknown-hyper\n'
+    printf 'rust-std-version=1.97.1\n'
     printf 'rust-bindings=hyper-os-0.0.0\n'
     printf 'abi-revision=%s\n' "$abi_revision"
 } > "$staged_output/share/hyper/manifest"
