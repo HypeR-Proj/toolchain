@@ -13,7 +13,7 @@ mod sys {
             pub fn __hyper_std_clock() -> u64;
             pub fn hyper_runtime_wait_u32(address: *const u32, expected: u32, deadline: u64)
             -> i32;
-            pub fn hyper_runtime_wake_u32(address: *const u32, count: u32);
+            pub fn hyper_runtime_wake_u32(address: *const u32, count: u32) -> u32;
         }
     }
     pub mod futex {
