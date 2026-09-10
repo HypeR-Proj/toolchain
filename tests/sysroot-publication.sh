@@ -38,6 +38,9 @@ test -f "$output/lib/libhyper.a"
 test -x "$output/bin/hyper-brand-elf"
 test -x "$output/bin/hyper-cargo"
 test -f "$output/share/hyper/rust/hyper-os/Cargo.toml"
+# Nested source modules must survive SDK publication with their relative paths.
+cmp "$4/hyper-os/src/fs/metadata.rs" \
+    "$output/share/hyper/rust/hyper-os/src/fs/metadata.rs"
 test -f "$output/share/hyper/rust/hyper-service/Cargo.toml"
 test -f "$output/share/hyper/rust/hyper-vm-image/Cargo.toml"
 test ! -e "$output.publish-lock"

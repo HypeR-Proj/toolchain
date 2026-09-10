@@ -61,6 +61,7 @@ fn main() {
     assert!(hyper_rt::process::stdout().is_ok());
     assert!(hyper_rt::process::stderr().is_ok());
     virtual_serial::run(&startup.take(hyper_os::startup::ROOT_VMAR).unwrap());
+    files::scoped_startup_root(&mut startup);
     drop(startup); // The remaining I/O and TLS destructor still need these handles.
     COUNTER.with(|value| {
         value.set(42);

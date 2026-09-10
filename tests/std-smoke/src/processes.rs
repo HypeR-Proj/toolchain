@@ -48,6 +48,14 @@ pub fn child(mode: &str) {
             println!("OUTPUT_OWNER_EXITED");
         }
         "null" => println!("discarded output"),
+        "file-lock" => {
+            let file = std::fs::File::open(std::env::var("STD_LOCK_PATH").unwrap()).unwrap();
+            file.lock().unwrap();
+            println!("locked");
+            std::thread::sleep(Duration::from_secs(30));
+            drop(file);
+        }
+        "scoped-root" => crate::files::scoped_root_child(),
         "cwd" => {
             std::fs::write("child-file", b"shared ramfs").unwrap();
         }

@@ -181,9 +181,10 @@ install_rust_crate() {
     destination=$2
     install -d "$destination/src"
     install -m 0644 "$source/Cargo.toml" "$destination/Cargo.toml"
-    for source_file in "$source"/src/*.rs; do
-        install -m 0644 "$source_file" "$destination/src/$(basename "$source_file")"
-    done
+    # Source modules may be nested and may include non-Rust data with
+    # include_bytes!/include_str!. Preserve the complete declared src tree;
+    # target directories and generation tooling live outside that boundary.
+    cp -R "$source/src/." "$destination/src/"
 }
 
 # Rust consumers compile SDK crates with their pinned compiler. Install source
