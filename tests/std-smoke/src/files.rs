@@ -39,6 +39,20 @@ pub fn run() {
     drop(clone);
     drop(file);
 
+    // Keep enough descriptors live to cross several Native handle-table
+    // segments, then exercise reuse after closing the complete batch.
+    for _ in 0..2 {
+        let mut readers = (0..256)
+            .map(|_| File::open(&path))
+            .collect::<std::io::Result<Vec<_>>>()
+            .unwrap();
+        for reader in &mut readers {
+            let mut bytes = [0; 3];
+            reader.read_exact(&mut bytes).unwrap();
+            assert_eq!(&bytes, b"new");
+        }
+    }
+
     let mut append = OpenOptions::new().append(true).open(&path).unwrap();
     append.seek(SeekFrom::Start(1)).unwrap();
     assert_eq!(append.write(b"").unwrap(), 0);

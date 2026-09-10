@@ -40,6 +40,13 @@ pub fn child(mode: &str) {
             std::process::exit(7);
         }
         "sleep" => std::thread::sleep(Duration::from_secs(30)),
+        "held-output" => std::thread::sleep(Duration::from_secs(10)),
+        "detached-output" => {
+            let child = command("held-output").spawn();
+            assert!(child.is_ok(), "failed to start output holder: {child:?}");
+            drop(child);
+            println!("OUTPUT_OWNER_EXITED");
+        }
         "null" => println!("discarded output"),
         "cwd" => {
             std::fs::write("child-file", b"shared ramfs").unwrap();

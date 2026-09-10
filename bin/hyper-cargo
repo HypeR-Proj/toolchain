@@ -109,6 +109,14 @@ if [ "$subcommand" = generate-lockfile ] || [ "$subcommand" = fetch ]; then
         "$@"
 fi
 
+link_fingerprint=$(cat "$sysroot/share/hyper/link-fingerprint")
+case "$link_fingerprint" in
+    ''|*[!0-9a-f]*) echo "hyper-cargo: invalid SDK link fingerprint" >&2; exit 2 ;;
+esac
+# The driver links archives outside Cargo's crate graph. Make their content and
+# tool identity an explicit compiler input rather than silently reusing a link.
+link_mode_rustflags="$link_mode_rustflags, '--cfg', 'hyper_sdk_link_id=\"$link_fingerprint\"'"
+
 # The distributed bare-metal core/alloc rlibs are not built for Native PIE.
 # Rebuild them with the same PIC/abort flags as the application. Scope Cargo's
 # unstable build-std opt-in to this driver; the repository pins rustc + rust-src.

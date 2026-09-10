@@ -100,6 +100,21 @@ if [ ! -f "$rust_library" ]; then
     echo "build-sysroot.sh: rust-src is required for the Native PIC runtime" >&2
     exit 1
 fi
+# Capture source contents, selected tools and options before any build work.
+state_tool=$repository/scripts/sysroot-state.py
+state_inputs=$transaction/inputs.json
+capture_inputs() {
+    python3 "$state_tool" inputs "$1" "$abi_source/Cargo.toml" "$abi_source/src" "$abi_source/include" "$lib_source" \
+        "$loader_source" "$rust_source" "$repository" \
+        "$rust_sysroot/lib/rustlib/src/rust/library" "$rust_sysroot/share/doc/rust/licenses" \
+        "$rust_sysroot/share/doc/rust/COPYRIGHT-library.html"
+}
+capture_inputs "$state_inputs"
+if python3 "$state_tool" check "$output" "$state_inputs"; then
+    echo "Native SDK is up to date: $output"
+    exit 0
+fi
+
 RUSTC_BOOTSTRAP=1 "${HYPER_CARGO_DRIVER:-cargo}" fetch \
     --manifest-path "$rust_library" --locked --target aarch64-unknown-none
 
@@ -201,8 +216,18 @@ install -d "$staged_output/share/hyper"
 "$staged_output/bin/hyper-brand-elf" "$staged_output/lib/libhyper.so"
 "$staged_output/bin/hyper-brand-elf" "$staged_output/lib/ld-hyper-aarch64.so"
 
+python3 "$state_tool" link-id "$staged_output" "$state_inputs"
+# A changed build input must not be recorded as a successfully cached SDK.
+capture_inputs "$transaction/inputs-after.json"
+python3 "$state_tool" compare "$state_inputs" "$transaction/inputs-after.json"
+# Keep Cargo fingerprints for byte-identical Rust/std sources and linker tools.
+# Changed native inputs have a separate link identity consumed by hyper-cargo.
+python3 "$state_tool" preserve "$output" "$staged_output"
+python3 "$state_tool" record "$staged_output" "$state_inputs" "$transaction/state.json"
+
 # No existing sysroot is touched until every compiler and install succeeds.
 if [ -e "$output" ] || [ -L "$output" ]; then
     mv "$output" "$transaction/previous"
 fi
 mv "$staged_output" "$output"
+mv "$transaction/state.json" "$output.build-state.json"

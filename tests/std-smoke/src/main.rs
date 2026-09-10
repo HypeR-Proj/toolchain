@@ -3,6 +3,8 @@
 
 mod files;
 mod processes;
+mod relay;
+mod virtual_serial;
 mod wait_sets;
 
 use clap::Parser;
@@ -53,11 +55,12 @@ fn main() {
     if args.panic {
         panic!("HYPER_STD_EXPECTED_PANIC");
     }
-    let startup = hyper_rt::process::startup().unwrap();
+    let mut startup = hyper_rt::process::startup().unwrap();
     assert!(hyper_rt::process::startup().is_err());
     assert!(hyper_rt::process::stdin().is_ok());
     assert!(hyper_rt::process::stdout().is_ok());
     assert!(hyper_rt::process::stderr().is_ok());
+    virtual_serial::run(&startup.take(hyper_os::startup::ROOT_VMAR).unwrap());
     drop(startup); // The remaining I/O and TLS destructor still need these handles.
     COUNTER.with(|value| {
         value.set(42);
@@ -76,6 +79,11 @@ fn main() {
     let mutex = Mutex::new(1);
     let guard = mutex.lock().unwrap();
     assert!(mutex.try_lock().is_err());
+    let relay_result = relay::verify();
+    assert!(
+        relay_result.is_ok(),
+        "byte relay regression: {relay_result:?}"
+    );
     let now = Instant::now();
     let (_guard, timeout) = Condvar::new()
         .wait_timeout(guard, Duration::from_millis(1))
