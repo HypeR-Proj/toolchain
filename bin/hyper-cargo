@@ -7,8 +7,16 @@ set -eu
 
 script_directory=$(CDPATH='' cd -- "$(dirname "$0")" && pwd)
 default_sysroot=$(CDPATH='' cd -- "$script_directory/.." && pwd)
-architecture=${HYPER_ARCH:-aarch64}
 sysroot=${HYPER_SYSROOT:-$default_sysroot}
+manifest=$sysroot/share/hyper/manifest
+architecture=$(sed -n 's/^architecture=//p' "$manifest")
+case "$architecture" in aarch64|riscv64) ;; *)
+    echo "hyper-cargo: invalid SDK architecture identity" >&2; exit 2 ;;
+esac
+if [ "${HYPER_ARCH:-$architecture}" != "$architecture" ]; then
+    echo "hyper-cargo: HYPER_ARCH conflicts with the installed SDK" >&2
+    exit 2
+fi
 cargo=${HYPER_CARGO_DRIVER:-cargo}
 link_mode=${HYPER_LINK_MODE:-dynamic}
 rust_std=${HYPER_RUST_STD:-1}
@@ -39,6 +47,10 @@ case "$architecture" in
     aarch64)
         target=aarch64-unknown-none
         target_table=target.aarch64-unknown-none
+        ;;
+    riscv64)
+        target=riscv64gc-unknown-none-elf
+        target_table=target.riscv64gc-unknown-none-elf
         ;;
     *)
         echo "hyper-cargo: unsupported Native architecture: $architecture" >&2
@@ -123,8 +135,8 @@ link_mode_rustflags="$link_mode_rustflags, '--cfg', 'hyper_sdk_link_id=\"$link_f
 export RUSTC_BOOTSTRAP=1
 case "$rust_std" in
     1)
-        target="$sysroot/share/hyper/targets/aarch64-unknown-hyper.json"
-        target_table=target.aarch64-unknown-hyper
+        target="$sysroot/share/hyper/targets/$architecture-unknown-hyper.json"
+        target_table=target.$architecture-unknown-hyper
         export __CARGO_TESTS_ONLY_SRC_ROOT="$sysroot/share/hyper/rust-src/library"
         if [ ! -f "$__CARGO_TESTS_ONLY_SRC_ROOT/std/src/sys/pal/hyper/mod.rs" ]; then
             echo "hyper-cargo: Native std sources missing from SDK" >&2

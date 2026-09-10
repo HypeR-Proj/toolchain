@@ -15,7 +15,7 @@ the assembled SDK output and do not reach back into these source directories.
 
 ## Current scope
 
-- AArch64 freestanding C, `no_std` Rust, and partial Rust `std` compilation with dynamic PIE linking
+- AArch64 and RV64GC/LP64D freestanding C, `no_std` Rust, and partial Rust `std` compilation with dynamic PIE linking
   through `hyper-clang` and `hyper-cargo`, shared-object linking through
   `hyper-clang -shared`, and explicitly selectable static PIE linking;
 - assembly from one coherent repository revision;
@@ -25,8 +25,8 @@ the assembled SDK output and do not reach back into these source directories.
 - checked HypeR ELF branding after every application link; and
 - compile-time and link-time consumer smoke tests.
 
-Native images are little-endian AArch64 `ET_DYN` files. Dynamic executables use
-`/lib/ld-hyper-aarch64.so`, eager binding, and `libhyper.so`; static
+Native images are little-endian ELF64 `ET_DYN` files. Dynamic executables use
+`/lib/ld-hyper-aarch64.so` or `/lib/ld-hyper-riscv64.so`, eager binding, and `libhyper.so`; static
 images use `libhyper.a` and no interpreter. Both modes reject
 writable-executable segments and executable stacks. The driver uses LLD, links
 at zero for Kernel-selected placement, and validates the completed image before
@@ -40,7 +40,8 @@ From the repository root, run:
 make sdk-check
 ```
 
-The resulting AArch64 SDK is written to `target/sdk/aarch64`. `CLANG`
+The default SDK is written to `target/sdk/aarch64`; `ARCH=riscv64` selects
+`target/sdk/riscv64`. `CLANG`
 selects the target compiler, while `HOST_CC` independently selects the host
 compiler used to build tools that run during linking. Override `HYPER_LD`,
 `LLVM_AR`, and `LLVM_RANLIB` when the corresponding LLVM tools are not
@@ -92,7 +93,24 @@ sysroot after a compiler failure, and exclusion of a concurrent publisher.
 
 ## Rust std platform support
 
-`hyper-cargo` defaults to `aarch64-unknown-hyper` with ordinary Rust `main()`.
+`hyper-cargo` selects `aarch64-unknown-hyper` or `riscv64-unknown-hyper` from
+the installed SDK, with ordinary Rust `main()`.
 Set `HYPER_RUST_STD=0` for existing freestanding `hyper_rt::entry!` applications.
 The [Native std guide](rust-std/README.md) describes the pinned Rust source
 overlay, `libhyper-std.a`, supported APIs, and future thread syscall integration.
+
+## Architecture selection
+
+The same SDK sources support AArch64 and RV64GC Native applications. Build a
+separate sysroot with `ARCH=riscv64`; its installed manifest records the machine
+and Rust targets. Installed drivers infer that identity and reject conflicting
+`HYPER_ARCH` overrides. Architecture selection participates in the SDK content
+fingerprint, including when an output directory is reused.
+
+RISC-V uses the LP64D C/Rust calling convention, a 16-byte aligned stack and
+`riscv64-unknown-hyper` for std (`riscv64gc-unknown-none-elf` for no_std).
+`tp` holds the runtime's opaque per-thread state, initially zero; key-based TLS
+is shared with AArch64. Compiler ELF TLS remains unsupported. The interpreter
+is `/lib/ld-hyper-riscv64.so`; static PIE and dynamic executables use the same
+runtime sources. RISC-V dynamic relocations are RELATIVE, 64 and JUMP_SLOT;
+COPY, TLS and resolver relocations are rejected.

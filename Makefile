@@ -1,12 +1,20 @@
 # SPDX-FileCopyrightText: 2026 roolrz
 # SPDX-License-Identifier: Apache-2.0
 
+ARCH ?= aarch64
+export HYPER_ARCH := $(ARCH)
+RUST_TARGET_aarch64 := aarch64-unknown-none
+RUST_TARGET_riscv64 := riscv64gc-unknown-none-elf
+RUST_TARGET := $(RUST_TARGET_$(ARCH))
+ifeq ($(RUST_TARGET),)
+$(error unsupported Native ARCH '$(ARCH)')
+endif
 ABI_SOURCE ?=
 LIB_SOURCE ?=
 LOADER_SOURCE ?=
 RUST_SOURCE ?=
-OUTPUT ?= target/sysroot/aarch64
-TEST_OUTPUT ?= target/tests/aarch64
+OUTPUT ?= target/sysroot/$(ARCH)
+TEST_OUTPUT ?= target/tests/$(ARCH)
 SMOKE_SOURCE ?= tests/smoke.c
 SHARED_SMOKE_SOURCE ?= tests/shared-smoke.c
 RUST_SMOKE_MANIFEST ?= tests/rust-smoke/Cargo.toml
@@ -51,22 +59,28 @@ check: sysroot test-publication
 		HYPER_RUST_STD=0 "$(OUTPUT)/bin/hyper-cargo" build \
 		--manifest-path "$(RUST_SMOKE_MANIFEST)" --release --locked --offline
 	"$(OUTPUT)/bin/hyper-brand-elf" --check-dynamic \
-		"$(TEST_OUTPUT)/rust/aarch64-unknown-none/release/hyper-rust-smoke"
+		"$(TEST_OUTPUT)/rust/$(RUST_TARGET)/release/hyper-rust-smoke"
 	CARGO_TARGET_DIR="$(abspath $(TEST_OUTPUT))/rust" \
 		HYPER_LINK_MODE=static HYPER_SYSROOT="$(abspath $(OUTPUT))" \
 		HYPER_RUST_STD=0 "$(OUTPUT)/bin/hyper-cargo" build \
 		--manifest-path "$(RUST_SMOKE_MANIFEST)" --release --locked --offline
 	"$(OUTPUT)/bin/hyper-brand-elf" --check-static \
-		"$(TEST_OUTPUT)/rust/aarch64-unknown-none/release/hyper-rust-smoke"
+		"$(TEST_OUTPUT)/rust/$(RUST_TARGET)/release/hyper-rust-smoke"
 	CARGO_TARGET_DIR="$(abspath $(TEST_OUTPUT))/rust" \
 		HYPER_SYSROOT="$(abspath $(OUTPUT))" \
 		HYPER_RUST_STD=0 "$(OUTPUT)/bin/hyper-cargo" build \
 		--manifest-path "$(RUST_SMOKE_MANIFEST)" --release --locked --offline
 	"$(OUTPUT)/bin/hyper-brand-elf" --check-dynamic \
-		"$(TEST_OUTPUT)/rust/aarch64-unknown-none/release/hyper-rust-smoke"
+		"$(TEST_OUTPUT)/rust/$(RUST_TARGET)/release/hyper-rust-smoke"
+	python3 scripts/check-native-elf.py "$(ARCH)" \
+		"$(OUTPUT)/lib/libhyper.so" "$(OUTPUT)/lib/ld-hyper-$(ARCH).so" \
+		"$(TEST_OUTPUT)/smoke" "$(TEST_OUTPUT)/smoke-static" \
+		"$(TEST_OUTPUT)/rust/$(RUST_TARGET)/release/hyper-rust-smoke"
+	python3 tests/architecture.py "$(abspath $(OUTPUT))" "$(TEST_OUTPUT)/smoke"
 	test -s "$(OUTPUT)/share/hyper/manifest"
 	sh scripts/check-rust-std.sh "$(OUTPUT)" "$(TEST_OUTPUT)/std" tests/std-smoke/Cargo.toml
 	sh scripts/check-std-sync.sh
+	sh scripts/check-loader-arch.sh
 
 test-publication: verify-sources
 	sh tests/sysroot-publication.sh "$(ABI_SOURCE)" "$(LIB_SOURCE)" "$(LOADER_SOURCE)" "$(RUST_SOURCE)"

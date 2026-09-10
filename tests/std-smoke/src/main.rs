@@ -160,6 +160,7 @@ fn main() {
     });
     assert_eq!(*contended.read().unwrap(), 400);
     native_thread_stop();
+    floating_point_threads();
     println!("HYPER_STD_THREADS_OK");
     assert_eq!(Arc::strong_count(&captured), 1);
     files::run();
@@ -194,22 +195,22 @@ fn native_thread_stop() {
     use hyper_os::handle::ThreadObject;
     use hyper_os::wait::{ObjectSignals, WaitItem};
     use std::sync::atomic::{AtomicU32, Ordering};
-    extern "C" fn parked(argument: *const AtomicU32) -> ! {
+    extern "C" fn cpu_bound(argument: *const AtomicU32) -> ! {
         // SAFETY: native_thread_stop retains this word through TERMINATED.
         let word = unsafe { &*argument };
         word.store(1, Ordering::Release);
         loop {
-            let _ = hyper_os::thread::atomic_wait(word, 1, u64::MAX);
+            std::hint::spin_loop();
         }
     }
     let word = AtomicU32::new(0);
     let mut stack = vec![0u8; 64 * 1024 + 16];
     let top = (stack.as_mut_ptr() as usize + stack.len()) & !15;
-    // SAFETY: a distinct retained stack and word are supplied; parked never
+    // SAFETY: a distinct retained stack and word are supplied; cpu_bound never
     // returns or accesses TLS. Both stay live until the terminal observation.
     let thread = unsafe {
         hyper_os::thread::create(
-            parked as *const () as u64,
+            cpu_bound as *const () as u64,
             top as u64,
             0,
             std::ptr::from_ref(&word) as u64,
@@ -234,4 +235,33 @@ fn native_thread_stop() {
     assert!(hyper_os::thread::start(thread.as_handle_ref()).is_err());
     drop(thread);
     drop(stack);
+}
+
+// Runtime operands prevent constant folding; distinct per-thread accumulators
+// cross both immediate and blocking syscalls while competing for execution.
+fn floating_point_threads() {
+    let workers: Vec<_> = (1..=8)
+        .map(|index| {
+            std::thread::spawn(move || {
+                COUNTER.with(|value| value.set(index));
+                let step = std::hint::black_box(index as f64 * 0.125);
+                let mut value = std::hint::black_box(0.0f64);
+                for iteration in 0..4096 {
+                    value += step;
+                    if iteration % 257 == 0 {
+                        std::thread::sleep(Duration::from_micros(1));
+                    } else if iteration % 31 == 0 {
+                        std::thread::yield_now();
+                    }
+                    COUNTER.with(|local| assert_eq!(local.get(), index));
+                    std::hint::black_box(value);
+                }
+                assert_eq!(value, index as f64 * 512.0);
+            })
+        })
+        .collect();
+    for worker in workers {
+        worker.join().unwrap();
+    }
+    println!("HYPER_STD_FP_THREADS_OK");
 }

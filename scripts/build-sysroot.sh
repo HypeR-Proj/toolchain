@@ -43,6 +43,15 @@ case "$output" in
     -*) output=./$output ;;
 esac
 
+architecture=${HYPER_ARCH:-aarch64}
+export HYPER_ARCH="$architecture"
+case "$architecture" in
+    aarch64) c_target=aarch64-none-elf; rust_target=aarch64-unknown-none; arch_flags= ;;
+    riscv64) c_target=riscv64-none-elf; rust_target=riscv64gc-unknown-none-elf
+        arch_flags="-march=rv64gc -mabi=lp64d -mno-relax" ;;
+    *) echo "build-sysroot.sh: unsupported architecture: $architecture" >&2; exit 2 ;;
+esac
+
 compiler=${CLANG:-clang}
 host_compiler=${HOST_CC:-clang}
 archiver=${LLVM_AR:-llvm-ar}
@@ -116,7 +125,7 @@ if python3 "$state_tool" check "$output" "$state_inputs"; then
 fi
 
 RUSTC_BOOTSTRAP=1 "${HYPER_CARGO_DRIVER:-cargo}" fetch \
-    --manifest-path "$rust_library" --locked --target aarch64-unknown-none
+    --manifest-path "$rust_library" --locked --target "$rust_target"
 
 cmake -S "$lib_source" -B "$build_directory" \
     -DCMAKE_BUILD_TYPE=Release \
@@ -125,20 +134,22 @@ cmake -S "$lib_source" -B "$build_directory" \
     -DCMAKE_AR="$archiver" \
     -DCMAKE_RANLIB="$archive_indexer" \
     -DCMAKE_SYSTEM_NAME=Generic \
-    -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-    -DCMAKE_C_COMPILER_TARGET=aarch64-none-elf \
-    -DCMAKE_ASM_COMPILER_TARGET=aarch64-none-elf \
+    -DCMAKE_C_FLAGS="$arch_flags" \
+    -DCMAKE_ASM_FLAGS="$arch_flags" \
+    -DCMAKE_SYSTEM_PROCESSOR="$architecture" \
+    -DCMAKE_C_COMPILER_TARGET="$c_target" \
+    -DCMAKE_ASM_COMPILER_TARGET="$c_target" \
     -DHYPER_LD="$linker" \
-    -DHYPER_ARCH=aarch64 \
+    -DHYPER_ARCH="$architecture" \
     -DHYPER_ABI_INCLUDE_DIR="$abi_source/include"
 cmake --build "$build_directory"
 cmake --install "$build_directory" --prefix "$staged_output"
 
 install -d "$staged_output/include/hyper"
 install -m 0644 "$abi_source/include/hyper/native.h" "$staged_output/include/hyper/native.h"
-install -d "$staged_output/lib/hyper/aarch64"
-install -m 0644 "$repository/lib/aarch64/hyper-native.ld" \
-    "$staged_output/lib/hyper/aarch64/hyper-native.ld"
+install -d "$staged_output/lib/hyper/$architecture"
+install -m 0644 "$repository/lib/hyper-native.ld" \
+    "$staged_output/lib/hyper/$architecture/hyper-native.ld"
 
 loader_build_directory=$transaction/loader-build
 cmake -S "$loader_source" -B "$loader_build_directory" \
@@ -146,11 +157,13 @@ cmake -S "$loader_source" -B "$loader_build_directory" \
     -DCMAKE_C_COMPILER="$compiler" \
     -DCMAKE_ASM_COMPILER="$compiler" \
     -DCMAKE_SYSTEM_NAME=Generic \
-    -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-    -DCMAKE_C_COMPILER_TARGET=aarch64-none-elf \
-    -DCMAKE_ASM_COMPILER_TARGET=aarch64-none-elf \
+    -DCMAKE_C_FLAGS="$arch_flags" \
+    -DCMAKE_ASM_FLAGS="$arch_flags" \
+    -DCMAKE_SYSTEM_PROCESSOR="$architecture" \
+    -DCMAKE_C_COMPILER_TARGET="$c_target" \
+    -DCMAKE_ASM_COMPILER_TARGET="$c_target" \
     -DHYPER_LD="$linker" \
-    -DHYPER_ARCH=aarch64 \
+    -DHYPER_ARCH="$architecture" \
     -DHYPER_SYSROOT="$staged_output"
 cmake --build "$loader_build_directory"
 cmake --install "$loader_build_directory" --prefix "$staged_output"
@@ -165,8 +178,8 @@ python3 "$repository/scripts/prepare-rust-std.py" \
 install -m 0644 "$rust_sysroot/share/doc/rust/COPYRIGHT-library.html" \
     "$staged_output/share/hyper/rust-src/COPYRIGHT-library.html"
 cp -R "$rust_sysroot/share/doc/rust/licenses" "$staged_output/share/hyper/rust-src/licenses"
-sed '1,3d' "$repository/targets/aarch64-unknown-hyper.json.in" \
-    > "$staged_output/share/hyper/targets/aarch64-unknown-hyper.json"
+sed '1,3d' "$repository/targets/${architecture}-unknown-hyper.json.in" \
+    > "$staged_output/share/hyper/targets/${architecture}-unknown-hyper.json"
 abi_revision=$(sed -n \
     's/^#define HYPER_NATIVE_ABI_REVISION UINT64_C(\([0-9][0-9]*\))$/\1/p' \
     "$abi_source/include/hyper/native.h")
@@ -204,9 +217,10 @@ install -d "$staged_output/share/hyper"
     printf 'sdk-version=%s\n' "$sdk_version"
     printf 'source-revision=%s\n' "$source_revision"
     printf 'host=%s-%s\n' "$(uname -s)" "$(uname -m)"
-    printf 'target=aarch64-none-elf\n'
-    printf 'rust-target=aarch64-unknown-none\n'
-    printf 'rust-std-target=aarch64-unknown-hyper\n'
+    printf 'architecture=%s\n' "$architecture"
+    printf 'target=%s\n' "$c_target"
+    printf 'rust-target=%s\n' "$rust_target"
+    printf 'rust-std-target=%s-unknown-hyper\n' "$architecture"
     printf 'rust-std-version=1.97.1\n'
     printf 'rust-bindings=hyper-os-0.0.0\n'
     printf 'abi-revision=%s\n' "$abi_revision"
@@ -215,7 +229,7 @@ install -d "$staged_output/share/hyper"
     -I"$abi_source/include" "$repository/tools/brand-elf.c" \
     -o "$staged_output/bin/hyper-brand-elf"
 "$staged_output/bin/hyper-brand-elf" "$staged_output/lib/libhyper.so"
-"$staged_output/bin/hyper-brand-elf" "$staged_output/lib/ld-hyper-aarch64.so"
+"$staged_output/bin/hyper-brand-elf" "$staged_output/lib/ld-hyper-$architecture.so"
 
 python3 "$state_tool" link-id "$staged_output" "$state_inputs"
 # A changed build input must not be recorded as a successfully cached SDK.

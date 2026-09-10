@@ -19,6 +19,7 @@ enum {
     ELF_VERSION_CURRENT = 1,
     ELF_TYPE_DYNAMIC = 3,
     ELF_MACHINE_AARCH64 = 183,
+    ELF_MACHINE_RISCV = 243,
     ELF_PROGRAM_LOAD = 1,
     ELF_PROGRAM_DYNAMIC = 2,
     ELF_PROGRAM_INTERPRETER = 3,
@@ -299,11 +300,13 @@ static int brand(
         return fail(path, "not a little-endian ELF64 image");
     }
     if (read_u16(header + 16) != ELF_TYPE_DYNAMIC ||
-        read_u16(header + 18) != ELF_MACHINE_AARCH64 ||
-        read_u32(header + 20) != ELF_VERSION_CURRENT || read_u32(header + 48) != 0 ||
+        !((read_u16(header + 18) == ELF_MACHINE_AARCH64 && read_u32(header + 48) == 0)
+          || (read_u16(header + 18) == ELF_MACHINE_RISCV &&
+              (read_u32(header + 48) & ~UINT32_C(1)) == 4)) ||
+        read_u32(header + 20) != ELF_VERSION_CURRENT ||
         read_u16(header + 52) != ELF_HEADER_SIZE) {
         fclose(file);
-        return fail(path, "not an AArch64 position-independent image");
+        return fail(path, "not a supported Native position-independent image");
     }
     if ((header[7] != 0 && header[7] != HYPER_NATIVE_ELF_OSABI) ||
         header[8] != HYPER_NATIVE_ELF_ABI_VERSION) {

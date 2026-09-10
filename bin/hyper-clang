@@ -6,9 +6,17 @@ set -eu
 
 script_directory=$(CDPATH='' cd -- "$(dirname "$0")" && pwd)
 default_sysroot=$(CDPATH='' cd -- "$script_directory/.." && pwd)
-architecture=${HYPER_ARCH:-aarch64}
 compiler=${HYPER_CLANG:-clang}
 sysroot=${HYPER_SYSROOT:-$default_sysroot}
+manifest=$sysroot/share/hyper/manifest
+architecture=$(sed -n 's/^architecture=//p' "$manifest")
+case "$architecture" in aarch64|riscv64) ;; *)
+    echo "hyper-clang: invalid SDK architecture identity" >&2; exit 2 ;;
+esac
+if [ "${HYPER_ARCH:-$architecture}" != "$architecture" ]; then
+    echo "hyper-clang: HYPER_ARCH conflicts with the installed SDK" >&2
+    exit 2
+fi
 linking=true
 link_mode=${HYPER_LINK_MODE:-dynamic}
 output_kind=executable
@@ -47,6 +55,13 @@ fi
 case "$architecture" in
     aarch64)
         target=aarch64-none-elf
+        architecture_flags=
+        architecture_link_flags=
+        ;;
+    riscv64)
+        target=riscv64-none-elf
+        architecture_flags="-march=rv64gc -mabi=lp64d -mno-relax"
+        architecture_link_flags=-Wl,--no-relax
         ;;
     *)
         echo "hyper-clang: unsupported Native architecture: $architecture" >&2
@@ -60,8 +75,8 @@ if [ "$linking" = false ]; then
         position_independent=-fPIC
     fi
     exec "$compiler" \
-        --target="$target" \
-        --sysroot="$sysroot" \
+        --target="$target" $architecture_flags \
+        --sysroot="$sysroot" -isystem "$sysroot/include" \
         -ffreestanding \
         "$position_independent" \
         -ffunction-sections \
@@ -94,7 +109,7 @@ if [ "$output_kind" = shared ]; then
         exit 2
     fi
     "$compiler" \
-        --target="$target" --sysroot="$sysroot" "$linker_option" \
+        --target="$target" $architecture_flags --sysroot="$sysroot" -isystem "$sysroot/include" "$linker_option" $architecture_link_flags \
         -Wno-unused-command-line-argument -ffreestanding -fPIC \
         -ffunction-sections -fdata-sections -fvisibility=hidden \
         -fno-stack-protector -nostdlib "$@" \
@@ -104,7 +119,7 @@ if [ "$output_kind" = shared ]; then
         -L"$sysroot/lib" -Wl,-Bdynamic -lhyper
 elif [ "$link_mode" = static ]; then
     "$compiler" \
-        --target="$target" --sysroot="$sysroot" "$linker_option" \
+        --target="$target" $architecture_flags --sysroot="$sysroot" -isystem "$sysroot/include" "$linker_option" $architecture_link_flags \
         -Wno-unused-command-line-argument -ffreestanding -fPIE \
         -ffunction-sections -fdata-sections -fvisibility=hidden \
         -fno-stack-protector -nostdlib "$crt" "$crt_support" "$@" \
@@ -114,11 +129,11 @@ elif [ "$link_mode" = static ]; then
         -Wl,-T,"$linker_script" -L"$sysroot/lib" -lhyper
 elif [ "$link_mode" = dynamic ]; then
     "$compiler" \
-        --target="$target" --sysroot="$sysroot" "$linker_option" \
+        --target="$target" $architecture_flags --sysroot="$sysroot" -isystem "$sysroot/include" "$linker_option" $architecture_link_flags \
         -Wno-unused-command-line-argument -ffreestanding -fPIE \
         -ffunction-sections -fdata-sections -fvisibility=hidden \
         -fno-stack-protector -nostdlib "$crt" "$crt_support" "$@" \
-        -Wl,-pie,--dynamic-linker=/lib/ld-hyper-aarch64.so \
+        -Wl,-pie,--dynamic-linker=/lib/ld-hyper-$architecture.so \
         -Wl,--no-undefined,--fatal-warnings,-z,text,-z,relro,-z,now \
         -Wl,--build-id=none,--gc-sections,-z,noexecstack,-z,max-page-size=4096 \
         -Wl,--hash-style=sysv,--entry=_start,--as-needed \
