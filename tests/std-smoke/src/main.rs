@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: 2026 roolrz
 // SPDX-License-Identifier: Apache-2.0
 
+mod files;
+mod processes;
+mod wait_sets;
+
 use clap::Parser;
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -17,6 +21,8 @@ struct Args {
     read_input: bool,
     #[arg(long)]
     panic: bool,
+    #[arg(long, hide = true)]
+    child: Option<String>,
 }
 
 static WORKER_DROPS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -40,6 +46,10 @@ thread_local! {
 
 fn main() {
     let args = Args::parse();
+    if let Some(mode) = args.child.as_deref() {
+        processes::child(mode);
+        return;
+    }
     if args.panic {
         panic!("HYPER_STD_EXPECTED_PANIC");
     }
@@ -143,10 +153,9 @@ fn main() {
     native_thread_stop();
     println!("HYPER_STD_THREADS_OK");
     assert_eq!(Arc::strong_count(&captured), 1);
-    assert_eq!(
-        std::fs::File::open("/missing").unwrap_err().kind(),
-        io::ErrorKind::Unsupported
-    );
+    files::run();
+    wait_sets::run();
+    processes::run();
     assert_eq!(
         std::net::TcpStream::connect("127.0.0.1:80")
             .unwrap_err()
