@@ -134,6 +134,11 @@ case "$rust_std" in
             echo "hyper-cargo: this SDK requires rustc 1.97.1" >&2
             exit 2
         fi
+        std_fingerprint=$(cat "$sysroot/share/hyper/std-fingerprint")
+        case "$std_fingerprint" in
+            ''|*[!0-9a-f]*) echo "hyper-cargo: invalid SDK std fingerprint" >&2; exit 2 ;;
+        esac
+        link_mode_rustflags="$link_mode_rustflags, '--cfg', 'hyper_sdk_std_id=\"$std_fingerprint\"'"
         # Cargo's source override and JSON targets are pinned unstable APIs.
         set -- -Zjson-target-spec -Zbuild-std=std,panic_abort -Zbuild-std-features= "$@"
         runtime_rustflags=", '-L', 'native=$sysroot/lib', '-C', 'link-arg=$sysroot/lib/crt-std.o'"

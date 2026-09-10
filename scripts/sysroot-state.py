@@ -129,6 +129,12 @@ def main():
                     "tools": state["tools"], "environment": {key: value for key, value in state["environment"].items()
                     if key not in {"HYPER_SDK_VERSION", "HYPER_SDK_SOURCE_REVISION"}}}
         (output / "share/hyper/link-fingerprint").write_text(hashlib.sha256(encode(identity)).hexdigest() + "\n")
+        # build-std does not reliably invalidate cached sysroot crates after an
+        # installed source override changes. Bind those sources to rustflags.
+        std_identity = {"sources": tree(output / "share/hyper/rust-src"),
+                        "targets": tree(output / "share/hyper/targets")}
+        (output / "share/hyper/std-fingerprint").write_text(
+            hashlib.sha256(encode(std_identity)).hexdigest() + "\n")
     else:
         raise SystemExit(f"unknown operation: {operation}")
 

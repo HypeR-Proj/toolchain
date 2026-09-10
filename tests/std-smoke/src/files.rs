@@ -92,6 +92,12 @@ pub fn run() {
     let copied = format!("{directory}/copy");
     assert_eq!(fs::copy(&path, &copied).unwrap(), contents.len() as u64);
     assert_eq!(fs::read(&copied).unwrap(), contents);
+    assert!(fs::copy(&path, &path).is_err());
+    let hard_copy = format!("{directory}/hard-copy");
+    assert!(fs::hard_link(&path, &hard_copy).is_ok());
+    assert!(fs::copy(&path, &hard_copy).is_err());
+    assert!(matches!(fs::read(&path), Ok(ref data) if data == &contents));
+    assert!(fs::remove_file(&hard_copy).is_ok());
     let entries = fs::read_dir(&directory)
         .unwrap()
         .collect::<Result<Vec<_>, _>>()
