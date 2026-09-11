@@ -130,8 +130,10 @@ name = "hyper-std-smoke"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "hyper-abi",
  "hyper-os",
  "hyper-rt",
+ "hyper-sys",
 ]
 
 [[package]]

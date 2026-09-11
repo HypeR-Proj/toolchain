@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 roolrz
 // SPDX-License-Identifier: Apache-2.0
 
+mod cow;
 mod files;
 mod processes;
 mod relay;
@@ -60,6 +61,11 @@ fn main() {
     assert!(hyper_rt::process::stdin().is_ok());
     assert!(hyper_rt::process::stdout().is_ok());
     assert!(hyper_rt::process::stderr().is_ok());
+    let cow_result = startup
+        .borrow(hyper_os::startup::ROOT_VMAR)
+        .map_err(|error| format!("{error:?}"))
+        .and_then(cow::run);
+    assert!(cow_result.is_ok(), "COW regression: {cow_result:?}");
     virtual_serial::run(&startup.take(hyper_os::startup::ROOT_VMAR).unwrap());
     files::scoped_startup_root(&mut startup);
     drop(startup); // The remaining I/O and TLS destructor still need these handles.
