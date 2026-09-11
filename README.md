@@ -97,7 +97,7 @@ sysroot after a compiler failure, and exclusion of a concurrent publisher.
 the installed SDK, with ordinary Rust `main()`.
 Set `HYPER_RUST_STD=0` for existing freestanding `hyper_rt::entry!` applications.
 The [Native std guide](rust-std/README.md) describes the pinned Rust source
-overlay, `libhyper-std.a`, supported APIs, and future thread syscall integration.
+overlay, `libhyper-std.a`, supported APIs, and scheduler-backed thread and synchronization integration.
 
 ## Architecture selection
 
