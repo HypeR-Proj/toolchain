@@ -7,6 +7,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 pub fn run() {
     let directory = format!("/std-check-{}", std::process::id());
     fs::create_dir(&directory).unwrap();
+    bulk_read(&directory);
     let path = format!("{directory}/data");
     let mut file = OpenOptions::new()
         .read(true)
@@ -397,4 +398,31 @@ fn imported_file(root: &hyper_os::fs::Directory) {
         sibling.read_exact_at(&mut byte, 3).unwrap_err().kind(),
         std::io::ErrorKind::UnexpectedEof
     );
+}
+
+// One read must cross internal transfer batches; read_exact would hide short reads.
+fn bulk_read(directory: &str) {
+    let path = format!("{directory}/bulk");
+    let size = 2 * 1024 * 1024;
+    let data: Vec<u8> = (0..size + 37).map(|index| (index % 251) as u8).collect();
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .unwrap();
+    file.set_len(data.len() as u64).unwrap();
+    file.write_all(&data).unwrap();
+    file.seek(SeekFrom::Start(17)).unwrap();
+    let mut output = vec![0xcc; size];
+    assert_eq!(file.read(&mut output).unwrap(), size);
+    assert_eq!(output, data[17..17 + size]);
+    output.fill(0xcc);
+    assert_eq!(file.read(&mut output).unwrap(), 20);
+    assert_eq!(&output[..20], &data[17 + size..]);
+    assert!(output[20..].iter().all(|byte| *byte == 0xcc));
+    assert_eq!(file.read(&mut output).unwrap(), 0);
+    drop(file);
+    fs::remove_file(path).unwrap();
+    println!("HypeR std bulk read: ok");
 }
