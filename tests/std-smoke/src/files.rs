@@ -308,6 +308,7 @@ pub fn scoped_startup_root(startup: &mut hyper_os::startup::Startup<'_>) {
     fs::create_dir(format!("{base}/child")).unwrap();
     fs::write(format!("{base}/x"), b"selected root").unwrap();
     let root = startup.take_root_directory().unwrap();
+    imported_file(&root);
     let rights = DirectoryRights::from_rights(root.as_handle_ref().info().unwrap().rights).unwrap();
     let selected = root.open_directory(&base, rights).unwrap();
     let cursor = root.scope_at(&selected, rights).unwrap();
@@ -367,4 +368,33 @@ pub fn scoped_root_child() {
     );
     assert_eq!(fs::read("../x").unwrap(), fs::read("/x").unwrap());
     std::process::exit(0);
+}
+
+fn imported_file(root: &hyper_os::fs::Directory) {
+    use std::os::hyper::fs::FileExt;
+    let path = format!("/std-import-{}", std::process::id());
+    fs::write(&path, b"abc").unwrap();
+    let native = root.open(&path, hyper_os::fs::FileRights::READ).unwrap();
+    let mut imported = native.into_std();
+    assert_eq!(
+        imported.metadata().unwrap_err().kind(),
+        std::io::ErrorKind::PermissionDenied
+    );
+    fs::remove_file(&path).unwrap();
+    // No path reopen is possible now. Positioned reads do not move the cursor.
+    let mut byte = [0];
+    imported.read_exact_at(&mut byte, 1).unwrap();
+    assert_eq!(byte, [b'b']);
+    assert_eq!(imported.stream_position().unwrap(), 0);
+    imported.read_exact(&mut byte).unwrap();
+    assert_eq!(byte, [b'a']);
+    assert!(imported.write_all(b"x").is_err());
+    let mut sibling = imported.try_clone().unwrap();
+    drop(imported);
+    sibling.read_exact(&mut byte).unwrap();
+    assert_eq!(byte, [b'b']);
+    assert_eq!(
+        sibling.read_exact_at(&mut byte, 3).unwrap_err().kind(),
+        std::io::ErrorKind::UnexpectedEof
+    );
 }

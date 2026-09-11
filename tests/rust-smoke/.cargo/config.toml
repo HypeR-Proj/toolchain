@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2026 roolrz
+# SPDX-License-Identifier: Apache-2.0
+
+# This fixture exercises the freestanding runtime rather than HypeR std.
+[build]
+target = "aarch64-unknown-none"

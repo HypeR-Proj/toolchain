@@ -13,7 +13,7 @@ publish = false
 [dependencies]
 hyper-abi = "=0.0.0"
 hyper-sys = "=0.0.0"
-hyper-os = "=0.0.0"
+hyper-os = { version = "=0.0.0", features = ["std"] }
 hyper-rt = { version = "=0.0.0", features = ["std"] }
 clap = { version = "=4.6.6", features = ["derive", "env"] }
 
