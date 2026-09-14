@@ -5,6 +5,7 @@ mod cow;
 mod files;
 mod processes;
 mod relay;
+mod stack_workload;
 mod virtual_serial;
 mod wait_sets;
 
@@ -26,6 +27,8 @@ struct Args {
     panic: bool,
     #[arg(long, hide = true)]
     child: Option<String>,
+    #[arg(long, hide = true, num_args = 0..=1, default_missing_value = "all", value_parser = ["all", "inspect", "memory", "process"])]
+    stack_workload: Option<String>,
 }
 
 static WORKER_DROPS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -51,6 +54,11 @@ fn main() {
     let args = Args::parse();
     if let Some(mode) = args.child.as_deref() {
         processes::child(mode);
+        return;
+    }
+    if let Some(stage) = args.stack_workload.as_deref() {
+        let result = stack_workload::run(stage);
+        assert!(result.is_ok(), "stack workload failed: {result:?}");
         return;
     }
     if args.panic {
