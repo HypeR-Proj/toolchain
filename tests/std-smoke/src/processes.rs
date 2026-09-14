@@ -166,5 +166,29 @@ pub fn run() {
     assert_eq!(std::fs::read(&path).unwrap(), b"shared ramfs");
     std::fs::remove_file(path).unwrap();
     std::fs::remove_dir(directory).unwrap();
+    concurrent_spawn_and_retirement();
     println!("HYPER_STD_PROCESSES_OK");
+}
+
+fn concurrent_spawn_and_retirement() {
+    // Overlap process preparation with short-lived Thread retirement. The
+    // incoming scheduler tail runs on a potentially preempted startup stack;
+    // serial spawn/wait alone rarely exercises that extra stack demand.
+    std::thread::scope(|scope| {
+        for _ in 0..2 {
+            scope.spawn(|| {
+                for _ in 0..16 {
+                    assert!(
+                        command("null")
+                            .stdin(Stdio::null())
+                            .stdout(Stdio::null())
+                            .stderr(Stdio::null())
+                            .status()
+                            .unwrap()
+                            .success()
+                    );
+                }
+            });
+        }
+    });
 }
