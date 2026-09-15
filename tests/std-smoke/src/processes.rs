@@ -33,6 +33,28 @@ pub fn child(mode: &str) {
             std::io::stdin().read_to_end(&mut bytes).unwrap();
             std::io::stdout().write_all(&bytes).unwrap();
         }
+        "terminal-inherit" => {
+            assert!(command("input").status().unwrap().success());
+            println!("TERMINAL_INHERIT_OK");
+        }
+        "terminal-line" => {
+            let mut line = String::new();
+            std::io::stdin().read_line(&mut line).unwrap();
+            assert_eq!(line, "terminal-line\n");
+            println!("TERMINAL_LINE_OK");
+        }
+        "binary-eof-byte" => {
+            let mut child = command("input")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn()
+                .unwrap();
+            child.stdin.take().unwrap().write_all(b"a\x04b\r").unwrap();
+            let output = child.wait_with_output().unwrap();
+            assert!(output.status.success());
+            assert_eq!(output.stdout, b"a\x04b\r");
+            println!("BINARY_EOF_BYTE_OK");
+        }
         "env" => {
             assert_eq!(std::env::var("STD_CHILD_VALUE").unwrap(), "with spaces");
             assert!(std::env::var("STD_REMOVED").is_err());
