@@ -114,3 +114,21 @@ is shared with AArch64. Compiler ELF TLS remains unsupported. The interpreter
 is `/lib/ld-hyper-riscv64.so`; static PIE and dynamic executables use the same
 runtime sources. RISC-V dynamic relocations are RELATIVE, 64 and JUMP_SLOT;
 COPY, TLS and resolver relocations are rejected.
+
+## Initial user stack
+
+Applications may declare their main-thread stack size using the executable's
+`PT_GNU_STACK` header. For example, C applications can link with
+`hyper-clang -Wl,-z,stack-size=524288 ...` for 512 KiB. A Rust application's
+`build.rs` can emit `cargo:rustc-link-arg=-Wl,-z,stack-size=524288`; this scopes
+the setting to that application's binary instead of changing every dependency.
+Both static and dynamic executables use this declaration. The interpreter's
+own stack declaration is not applied to the application.
+
+Absent or zero declarations retain the 256 KiB default. The kernel rounds the
+requested size up to a page and keeps a lower unmapped guard page, rejects
+executable stacks and invalid/overlapping layouts, and charges committed pages
+to the process resource domain. Startup arguments must fit in the chosen stack.
+This configures the initial user stack only: `std::thread::Builder::stack_size`
+continues to configure additional user threads independently, and applications
+cannot select kernel thread stack sizes.
