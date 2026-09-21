@@ -4,3 +4,14 @@
 # Match application editor discovery; hyper-cargo overrides this explicitly.
 [build]
 target = "../../../../target/sdk/aarch64/share/hyper/targets/aarch64-unknown-hyper.json"
+
+# Local source navigation for Cargo discovery. The production hyper-cargo
+# driver overrides these paths with installed SDK crates. Keep these patches
+# out of the shared editor config so host workspaces retain their lockfiles.
+[patch.crates-io]
+hyper-abi = { path = "../../../../sdk/abi" }
+hyper-os = { path = "../../../../sdk/rust/hyper-os" }
+hyper-rt = { path = "../../../../sdk/rust/hyper-rt" }
+hyper-service = { path = "../../../../sdk/rust/hyper-service" }
+hyper-sys = { path = "../../../../sdk/rust/hyper-sys" }
+hyper-vm-image = { path = "../../../../sdk/rust/hyper-vm-image" }
