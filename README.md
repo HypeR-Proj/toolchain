@@ -69,8 +69,8 @@ compiler libraries.
 - `sdk/rust/` owns raw and safe Native Rust bindings plus language entry.
 - `sdk/toolchain/` owns compiler and SDK assembly mechanics.
 - The repository root owns integration and release composition.
-- Linux, FreeBSD, and POSIX compatibility remain separate personalities outside
-  the Native SDK contract.
+- Foreign OS compatibility is outside the Native SDK contract; no such
+  personality is currently shipped.
 
 ## License
 
@@ -126,9 +126,11 @@ Both static and dynamic executables use this declaration. The interpreter's
 own stack declaration is not applied to the application.
 
 Absent or zero declarations retain the 256 KiB default. The kernel rounds the
-requested size up to a page and keeps a lower unmapped guard page, rejects
-executable stacks and invalid/overlapping layouts, and charges committed pages
-to the process resource domain. Startup arguments must fit in the chosen stack.
-This configures the initial user stack only: `std::thread::Builder::stack_size`
-continues to configure additional user threads independently, and applications
-cannot select kernel thread stack sizes.
+requested size up to a page and reserves capacity max(initial size, 8 MiB),
+with an unmapped guard page at each end. It rejects executable stacks and
+invalid/overlapping layouts and charges committed pages to the process resource
+domain. Startup arguments must fit in the initially mapped extent.
+`std::thread::Builder::stack_size` selects a worker's initial extent. Main and
+worker stacks share the runtime's guarded reservation and explicit growth APIs;
+see [guarded, growable stacks](../lib/README.md#guarded-growable-stacks) for capacity
+and lifetime rules. Applications cannot select kernel thread stack sizes.
