@@ -23,6 +23,8 @@ struct Args {
     name: String,
     #[arg(long)]
     read_input: bool,
+    #[arg(long, hide = true)]
+    uncalibrated_clock: bool,
     #[arg(long)]
     panic: bool,
     #[arg(long, hide = true)]
@@ -52,6 +54,25 @@ thread_local! {
 
 fn main() {
     let args = Args::parse();
+    if args.uncalibrated_clock {
+        let before = std::time::SystemTime::now();
+        let uptime = before.duration_since(std::time::UNIX_EPOCH).unwrap();
+        assert!(uptime < Duration::from_secs(86400));
+        std::thread::spawn(|| std::thread::sleep(Duration::from_millis(20)))
+            .join()
+            .unwrap();
+        let after = std::time::SystemTime::now();
+        assert!(after > before);
+        std::fs::write("/clock-fallback-test", b"clock").unwrap();
+        let created = std::fs::metadata("/clock-fallback-test")
+            .unwrap()
+            .created()
+            .unwrap();
+        assert!(created >= before && created <= std::time::SystemTime::now());
+        std::fs::remove_file("/clock-fallback-test").unwrap();
+        println!("HYPER_STD_UNCALIBRATED_CLOCK_OK");
+        return;
+    }
     if let Some(mode) = args.child.as_deref() {
         processes::child(mode);
         return;
@@ -109,6 +130,14 @@ fn main() {
     std::thread::park();
     std::thread::park_timeout(Duration::from_millis(1));
     std::thread::sleep(Duration::from_millis(1));
+    detached_native_exit();
+    check_stack_growth();
+    std::thread::Builder::new()
+        .stack_size(64 * 1024)
+        .spawn(check_stack_growth)
+        .unwrap()
+        .join()
+        .unwrap();
     let captured = Arc::new(42);
     let child = Arc::clone(&captured);
     std::thread::Builder::new()
@@ -278,4 +307,82 @@ fn floating_point_threads() {
         worker.join().unwrap();
     }
     println!("HYPER_STD_FP_THREADS_OK");
+}
+
+fn check_stack_growth() {
+    let before = hyper_os::thread::current_stack().unwrap();
+    let local = 0x1234_u64;
+    let address = &local as *const u64 as usize;
+    assert!((before.base..before.top).contains(&address));
+    hyper_os::thread::grow_current_stack(before.size + 64 * 1024).unwrap();
+    let after = hyper_os::thread::current_stack().unwrap();
+    assert_eq!(after.top, before.top);
+    assert_eq!(after.capacity, before.capacity);
+    assert_eq!(after.size, before.size + 64 * 1024);
+    // SAFETY: newly mapped stack bytes below the old extent are disjoint from
+    // every current frame. Touch both ends to verify backing is accessible.
+    unsafe {
+        (after.base as *mut u8).write_volatile(42);
+        ((before.base - 1) as *mut u8).write_volatile(24);
+    }
+    assert_eq!(local, 0x1234);
+    assert!(hyper_os::thread::grow_current_stack(after.capacity + 4096).is_err());
+    assert_eq!(hyper_os::thread::current_stack().unwrap(), after);
+}
+
+// Bypass the ordinary worker return path. Repeated large VA reservations prove
+// the detached reaper observes kernel termination, not a trampoline-only flag.
+fn detached_native_exit() {
+    unsafe extern "C" {
+        fn hyper_runtime_thread_spawn_with_stack(
+            size: usize,
+            capacity: usize,
+            entry: extern "C" fn(*mut core::ffi::c_void),
+            argument: *mut core::ffi::c_void,
+            token: *mut usize,
+        ) -> i64;
+        fn hyper_runtime_thread_release(token: usize);
+        fn hyper_runtime_thread_detach();
+        fn hyper_thread_exit(status: i64) -> !;
+    }
+    extern "C" fn exit_directly(_: *mut core::ffi::c_void) {
+        // SAFETY: this fixture owns no Rust/TLS values; detach releases its
+        // runtime TLS allocation before exiting without returning to worker.
+        unsafe {
+            hyper_runtime_thread_detach();
+            hyper_thread_exit(0);
+        }
+    }
+    let deadline = Instant::now() + Duration::from_secs(20);
+    for _ in 0..96 {
+        loop {
+            let mut token = 0;
+            // SAFETY: fixed entry takes no borrowed data; ownership of each
+            // successful token is immediately transferred to the reaper.
+            let status = unsafe {
+                hyper_runtime_thread_spawn_with_stack(
+                    64 * 1024,
+                    8 * 1024 * 1024,
+                    exit_directly,
+                    core::ptr::null_mut(),
+                    &mut token,
+                )
+            };
+            if status == 0 {
+                // SAFETY: this successful token has exactly one caller owner.
+                unsafe { hyper_runtime_thread_release(token) };
+                break;
+            }
+            assert_eq!(
+                status,
+                hyper_os::Status::NO_MEMORY.as_raw(),
+                "unexpected stack admission error"
+            );
+            assert!(
+                Instant::now() < deadline,
+                "detached stack reservations leaked"
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }
 }

@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ARCH ?= aarch64
+# SDK construction and its installed-wrapper checks must use the same selected
+# compiler. In particular, Apple's PATH clang has no RISC-V backend.
+CLANG ?= clang
+export HYPER_CLANG ?= $(CLANG)
 export HYPER_ARCH := $(ARCH)
 RUST_TARGET_aarch64 := aarch64-unknown-none
 RUST_TARGET_riscv64 := riscv64gc-unknown-none-elf
