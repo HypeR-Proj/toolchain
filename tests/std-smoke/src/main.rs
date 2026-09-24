@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 roolrz
 // SPDX-License-Identifier: Apache-2.0
 
+mod bootstrap;
 mod cow;
 mod files;
 mod processes;
@@ -90,6 +91,7 @@ fn main() {
     assert!(hyper_rt::process::stdin().is_ok());
     assert!(hyper_rt::process::stdout().is_ok());
     assert!(hyper_rt::process::stderr().is_ok());
+    bootstrap::run(startup.borrow(hyper_os::startup::ROOT_VMAR).unwrap());
     let cow_result = startup
         .borrow(hyper_os::startup::ROOT_VMAR)
         .map_err(|error| format!("{error:?}"))
