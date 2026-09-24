@@ -125,11 +125,17 @@ the setting to that application's binary instead of changing every dependency.
 Both static and dynamic executables use this declaration. The interpreter's
 own stack declaration is not applied to the application.
 
-Absent or zero declarations retain the 256 KiB default. The kernel rounds the
-requested size up to a page and reserves capacity max(initial size, 8 MiB),
-with an unmapped guard page at each end. It rejects executable stacks and
-invalid/overlapping layouts and charges committed pages to the process resource
-domain. Startup arguments must fit in the initially mapped extent.
+The kernel passes the declaration through `MAIN_STACK_SIZE`; it supplies a
+separate temporary 128 KiB bootstrap stack for loader/runtime startup. The SDK
+selects the final main stack: absent or zero declarations use 256 KiB, nonzero
+requests round up to Native pages, and tiny requests are enlarged to hold the
+startup vector plus one page of handoff headroom. Its capacity is at least
+256 MiB or the initial size, with one unmapped guard page at each end. The
+runtime switches to this stack and retires the bootstrap reservation before
+constructors or application entry. Startup arguments must first fit the kernel
+bootstrap stack; enlarging `PT_GNU_STACK` does not enlarge that temporary stack.
+The kernel rejects executable stacks and invalid image layouts and charges
+committed pages to the process resource domain.
 `std::thread::Builder::stack_size` selects a worker's initial extent. Main and
 worker stacks share the runtime's guarded reservation and explicit growth APIs;
 see [guarded, growable stacks](../lib/README.md#guarded-growable-stacks) for capacity
