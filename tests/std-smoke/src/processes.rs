@@ -7,6 +7,7 @@ use std::time::Duration;
 
 pub fn child(mode: &str) {
     match mode {
+        "identity" => println!("{}", std::process::id()),
         "output" => {
             let out = [b'o'; 4096];
             let err = [b'e'; 4096];
@@ -94,8 +95,14 @@ fn command(mode: &str) -> Command {
 pub fn run() {
     assert_eq!(
         u64::from(std::process::id()),
-        hyper_os::task::current_process_id().unwrap()
+        hyper_os::task::current_process_id().unwrap() & hyper_abi::HYPER_NATIVE_KOID_SLOT_MASK
     );
+    let child = command("identity").stdout(Stdio::piped()).spawn().unwrap();
+    let child_id = child.id();
+    assert_ne!(child_id, std::process::id());
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    assert_eq!(output.stdout, format!("{child_id}\n").as_bytes());
     let output = command("empty-output").output().unwrap();
     assert!(
         output.status.success(),
