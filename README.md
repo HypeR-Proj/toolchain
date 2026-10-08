@@ -13,6 +13,11 @@ PIE link and startup contract.
 The top-level build owns product composition. System applications consume only
 the assembled SDK output and do not reach back into these source directories.
 
+`hyper-cargo doc` generates Rustdoc with the same installed SDK, Native target
+and standard library as application builds. The repository's
+[documentation pipeline](../../docs/documentation.md) uses it for both supported
+Native architectures.
+
 ## Current scope
 
 - AArch64 and RV64GC/LP64D freestanding C, `no_std` Rust, and partial Rust `std` compilation with dynamic PIE linking

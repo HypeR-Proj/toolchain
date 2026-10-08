@@ -22,13 +22,13 @@ link_mode=${HYPER_LINK_MODE:-dynamic}
 rust_std=${HYPER_RUST_STD:-1}
 
 if [ "$#" -eq 0 ]; then
-    echo "usage: hyper-cargo {build|check|clippy|fetch|generate-lockfile|rustc} [ARGUMENT ...]" >&2
+    echo "usage: hyper-cargo {build|check|clippy|doc|fetch|generate-lockfile|rustc} [ARGUMENT ...]" >&2
     exit 2
 fi
 subcommand=$1
 shift
 case "$subcommand" in
-    build | check | clippy | fetch | generate-lockfile | rustc) ;;
+    build | check | clippy | doc | fetch | generate-lockfile | rustc) ;;
     *)
         echo "hyper-cargo: unsupported Cargo subcommand: $subcommand" >&2
         exit 2
