@@ -133,7 +133,7 @@ elif [ "$link_mode" = dynamic ]; then
         -Wno-unused-command-line-argument -ffreestanding -fPIE \
         -ffunction-sections -fdata-sections -fvisibility=hidden \
         -fno-stack-protector -nostdlib "$crt" "$crt_support" "$@" \
-        "-Wl,-pie,--dynamic-linker=/lib/$architecture-hyper-hyper/ld-hyper-$architecture.so" \
+        "-Wl,-pie,--dynamic-linker=/lib64/ld-hyper-$architecture.so" \
         -Wl,--no-undefined,--fatal-warnings,-z,text,-z,relro,-z,now \
         -Wl,--build-id=none,--gc-sections,-z,noexecstack,-z,max-page-size=4096 \
         -Wl,--hash-style=sysv,--entry=_start,--as-needed \

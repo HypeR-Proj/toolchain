@@ -31,8 +31,8 @@ Native architectures.
 - compile-time and link-time consumer smoke tests.
 
 Native images are little-endian ELF64 `ET_DYN` files. Dynamic executables use
-`/lib/aarch64-hyper-hyper/ld-hyper-aarch64.so` or
-`/lib/riscv64-hyper-hyper/ld-hyper-riscv64.so`, eager binding, and `libhyper.so`; static
+`/lib64/ld-hyper-aarch64.so` or
+`/lib64/ld-hyper-riscv64.so`, eager binding, and `libhyper.so`; static
 images use `libhyper.a` and no interpreter. Both modes reject
 writable-executable segments and executable stacks. The driver uses LLD, links
 at zero for Kernel-selected placement, and validates the completed image before
@@ -70,9 +70,9 @@ compiler libraries.
 ## Component boundaries
 
 - `sdk/abi/` owns machine-visible syscall values and layouts.
-- `sdk/lib/` owns Native C runtime semantics.
-- `sdk/loader/` owns userspace ELF dependency and relocation policy.
-- `sdk/rust/` owns raw and safe Native Rust bindings plus language entry.
+- `lib/hyper/` owns Native C runtime semantics.
+- `lib/loader/` owns userspace ELF dependency and relocation policy.
+- `lib/rust/` owns raw and safe Native Rust bindings plus language entry.
 - `sdk/toolchain/` owns compiler and SDK assembly mechanics.
 - The repository root owns integration and release composition.
 - Foreign OS compatibility is outside the Native SDK contract; no such
@@ -117,7 +117,7 @@ RISC-V uses the LP64D C/Rust calling convention, a 16-byte aligned stack and
 `riscv64-unknown-hyper` for std (`riscv64gc-unknown-none-elf` for no_std).
 `tp` holds the runtime's opaque per-thread state, initially zero; key-based TLS
 is shared with AArch64. Compiler ELF TLS remains unsupported. The interpreter
-is `/lib/riscv64-hyper-hyper/ld-hyper-riscv64.so`; static PIE and dynamic executables use the same
+is `/lib64/ld-hyper-riscv64.so`; static PIE and dynamic executables use the same
 runtime sources. RISC-V dynamic relocations are RELATIVE, 64 and JUMP_SLOT;
 COPY, TLS and resolver relocations are rejected.
 
@@ -144,5 +144,5 @@ The kernel rejects executable stacks and invalid image layouts and charges
 committed pages to the process resource domain.
 `std::thread::Builder::stack_size` selects a worker's initial extent. Main and
 worker stacks share the runtime's guarded reservation and explicit growth APIs;
-see [guarded, growable stacks](../lib/README.md#guarded-growable-stacks) for capacity
+see [guarded, growable stacks](../../lib/hyper/README.md#guarded-growable-stacks) for capacity
 and lifetime rules. Applications cannot select kernel thread stack sizes.

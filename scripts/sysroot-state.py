@@ -125,7 +125,8 @@ def main():
         state = json.loads(requested.read_bytes())
         # Cargo does not track native archives/linker scripts passed by a custom
         # linker. This explicit identity invalidates consumers when those change.
-        identity = {"lib": tree(output / "lib"), "bin": tree(output / "bin"),
+        identity = {"lib": tree(output / "lib"), "lib64": tree(output / "lib64"),
+                    "bin": tree(output / "bin"),
                     "tools": state["tools"], "environment": {key: value for key, value in state["environment"].items()
                     if key not in {"HYPER_SDK_VERSION", "HYPER_SDK_SOURCE_REVISION"}}}
         (output / "share/hyper/link-fingerprint").write_text(hashlib.sha256(encode(identity)).hexdigest() + "\n")

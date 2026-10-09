@@ -205,7 +205,10 @@ install_rust_crate() {
 # boundaries and excluding generator and build artifacts.
 install_rust_crate "$abi_source" "$staged_output/share/hyper/abi"
 install -d "$staged_output/share/hyper/rust"
-install -m 0644 "$rust_source/Cargo.toml" "$staged_output/share/hyper/rust/Cargo.toml"
+# The installed ABI is a sibling of the bindings workspace. Keep source-tree
+# ownership out of the published SDK by relocating its one workspace dependency.
+sed 's|path = "../../sdk/abi"|path = "../abi"|' "$rust_source/Cargo.toml" \
+    > "$staged_output/share/hyper/rust/Cargo.toml"
 install_rust_crate "$rust_source/hyper-sys" "$staged_output/share/hyper/rust/hyper-sys"
 install_rust_crate "$rust_source/hyper-os" "$staged_output/share/hyper/rust/hyper-os"
 install_rust_crate "$rust_source/hyper-rt" "$staged_output/share/hyper/rust/hyper-rt"
@@ -229,7 +232,7 @@ install -d "$staged_output/share/hyper"
     -I"$abi_source/include" "$repository/tools/brand-elf.c" \
     -o "$staged_output/bin/hyper-brand-elf"
 "$staged_output/bin/hyper-brand-elf" "$staged_output/lib/libhyper.so"
-"$staged_output/bin/hyper-brand-elf" "$staged_output/lib/ld-hyper-$architecture.so"
+"$staged_output/bin/hyper-brand-elf" "$staged_output/lib64/ld-hyper-$architecture.so"
 
 python3 "$state_tool" link-id "$staged_output" "$state_inputs"
 # A changed build input must not be recorded as a successfully cached SDK.

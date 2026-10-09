@@ -4,13 +4,14 @@
 
 set -eu
 repository=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
+runtime=$repository/../../lib/hyper
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/hyper-std-sync.XXXXXX")
 trap 'rm -rf "$temporary"' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-for source in "$repository/../lib/src/thread.c" "$repository/tests/sync-host.c" "$repository/../lib/tests/unit/atomic-wait-host.c"; do
+for source in "$runtime/src/thread.c" "$repository/tests/sync-host.c" "$runtime/tests/unit/atomic-wait-host.c"; do
     "${HOST_CC:-clang}" -std=c17 -D_POSIX_C_SOURCE=200809L -DHYPER_THREAD_HOST_TEST \
-        -I"$repository/../lib/include" -I"$repository/../abi/include" \
+        -I"$runtime/include" -I"$repository/../abi/include" \
         -c "$source" -o "$temporary/$(basename "$source").o"
 done
 HYPER_RUST_LIBRARY="$(rustc --print sysroot)/lib/rustlib/src/rust/library" \

@@ -10,8 +10,8 @@ target = "aarch64-unknown-none"
 # out of the shared editor config so host workspaces retain their lockfiles.
 [patch.crates-io]
 hyper-abi = { path = "../../../../sdk/abi" }
-hyper-os = { path = "../../../../sdk/rust/hyper-os" }
-hyper-rt = { path = "../../../../sdk/rust/hyper-rt" }
-hyper-service = { path = "../../../../sdk/rust/hyper-service" }
-hyper-sys = { path = "../../../../sdk/rust/hyper-sys" }
-hyper-vm-image = { path = "../../../../sdk/rust/hyper-vm-image" }
+hyper-os = { path = "../../../../lib/rust/hyper-os" }
+hyper-rt = { path = "../../../../lib/rust/hyper-rt" }
+hyper-service = { path = "../../../../lib/rust/hyper-service" }
+hyper-sys = { path = "../../../../lib/rust/hyper-sys" }
+hyper-vm-image = { path = "../../../../lib/rust/hyper-vm-image" }

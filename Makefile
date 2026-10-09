@@ -77,7 +77,7 @@ check: sysroot test-publication
 	"$(OUTPUT)/bin/hyper-brand-elf" --check-dynamic \
 		"$(TEST_OUTPUT)/rust/$(RUST_TARGET)/release/hyper-rust-smoke"
 	python3 scripts/check-native-elf.py "$(ARCH)" \
-		"$(OUTPUT)/lib/libhyper.so" "$(OUTPUT)/lib/ld-hyper-$(ARCH).so" \
+		"$(OUTPUT)/lib/libhyper.so" "$(OUTPUT)/lib64/ld-hyper-$(ARCH).so" \
 		"$(TEST_OUTPUT)/smoke" "$(TEST_OUTPUT)/smoke-static" \
 		"$(TEST_OUTPUT)/rust/$(RUST_TARGET)/release/hyper-rust-smoke"
 	python3 tests/architecture.py "$(abspath $(OUTPUT))" "$(TEST_OUTPUT)/smoke"

@@ -23,7 +23,7 @@ for name in names:
         )
         if kind == 3:
             assert data[source:source + length] == (
-                f"/lib/{architecture}-hyper-hyper/ld-hyper-{architecture}.so\0".encode()
+                f"/lib64/ld-hyper-{architecture}.so\0".encode()
             ), name
         if kind == 7:
             assert memory == 0, name
