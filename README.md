@@ -7,8 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 
 HypeR Toolchain turns LLVM/Clang and the in-tree Native ABI and runtime sources
 into a consumable Native application SDK. It owns
-compiler-driver defaults, target profiles, sysroot assembly, and the dynamic
-PIE link and startup contract.
+compiler-driver defaults, target profiles, sysroot assembly, and the Native PIE
+link contract. The loaders and runtime under `lib/` implement userspace startup.
 
 The top-level build owns product composition. System applications consume only
 the assembled SDK output and do not reach back into these source directories.
@@ -25,8 +25,8 @@ Native architectures.
   `hyper-clang -shared`, and explicitly selectable static PIE linking;
 - assembly from one coherent repository revision;
 - assembly of Native headers, Rust OS-binding crates, CRT objects,
-  `libhyper.a`, `libhyper.so`, the Native interpreter, and the linker contract
-  into a sysroot;
+  `libhyper.a`, `libhyper.so`, the userspace executable loader, the Native
+  interpreter, and the linker contract into a sysroot;
 - checked HypeR ELF branding after every application link; and
 - compile-time and link-time consumer smoke tests.
 
@@ -34,9 +34,14 @@ Native images are little-endian ELF64 `ET_DYN` files. Dynamic executables use
 `/lib64/ld-hyper-aarch64.so` or
 `/lib64/ld-hyper-riscv64.so`, eager binding, and `libhyper.so`; static
 images use `libhyper.a` and no interpreter. Both modes reject
-writable-executable segments and executable stacks. The driver uses LLD, links
-at zero for Kernel-selected placement, and validates the completed image before
-applying the HypeR OSABI identity.
+writable-executable segments and executable stacks. The driver uses LLD and
+links at zero; the userspace loader selects the runtime placement. The driver
+validates the completed image before applying the HypeR OSABI identity.
+
+SDK assembly also builds `userspace-loader-hyper-<arch>` and installs it beside
+`ld-hyper-<arch>.so` in `lib64/`. It is a restricted bootstrap ELF with no
+interpreter, runtime relocations or writable globals. Both static and dynamic
+applications start through it; it is not named by an application's `PT_INTERP`.
 
 ## Build a sysroot
 
@@ -71,7 +76,8 @@ compiler libraries.
 
 - `sdk/abi/` owns machine-visible syscall values and layouts.
 - `lib/hyper/` owns Native C runtime semantics.
-- `lib/loader/` owns userspace ELF dependency and relocation policy.
+- `lib/userspace-loader/` owns application ELF mapping and startup stack encoding.
+- `lib/dynamic-loader/` owns userspace ELF dependency and relocation policy.
 - `lib/rust/` owns raw and safe Native Rust bindings plus language entry.
 - `sdk/toolchain/` owns compiler and SDK assembly mechanics.
 - The repository root owns integration and release composition.
@@ -131,17 +137,18 @@ the setting to that application's binary instead of changing every dependency.
 Both static and dynamic executables use this declaration. The interpreter's
 own stack declaration is not applied to the application.
 
-The kernel passes the declaration through `MAIN_STACK_SIZE`; it supplies a
-separate temporary 128 KiB bootstrap stack for loader/runtime startup. The SDK
-selects the final main stack: absent or zero declarations use 256 KiB, nonzero
+The userspace loader passes the declaration through the SDK's `MAIN_STACK_SIZE`
+auxv entry. The kernel supplies a separate temporary 128 KiB bootstrap stack.
+The SDK selects the final main stack: absent or zero declarations use 256 KiB, nonzero
 requests round up to Native pages, and tiny requests are enlarged to hold the
 startup vector plus one page of handoff headroom. Its capacity is at least
 256 MiB or the initial size, with one unmapped guard page at each end. The
 runtime switches to this stack and retires the bootstrap reservation before
 constructors or application entry. Startup arguments must first fit the kernel
 bootstrap stack; enlarging `PT_GNU_STACK` does not enlarge that temporary stack.
-The kernel rejects executable stacks and invalid image layouts and charges
-committed pages to the process resource domain.
+The userspace loader rejects executable stacks and invalid application image
+layouts. The kernel enforces mapping permissions and charges committed pages
+to the process resource domain.
 `std::thread::Builder::stack_size` selects a worker's initial extent. Main and
 worker stacks share the runtime's guarded reservation and explicit growth APIs;
 see [guarded, growable stacks](../../lib/hyper/README.md#guarded-growable-stacks) for capacity

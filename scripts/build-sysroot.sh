@@ -4,16 +4,17 @@
 
 set -eu
 
-if [ "$#" -ne 5 ]; then
-    echo "usage: build-sysroot.sh ABI_SOURCE LIB_SOURCE LOADER_SOURCE RUST_SOURCE OUTPUT" >&2
+if [ "$#" -ne 6 ]; then
+    echo "usage: build-sysroot.sh ABI_SOURCE LIB_SOURCE DYNAMIC_LOADER_SOURCE USERSPACE_LOADER_SOURCE RUST_SOURCE OUTPUT" >&2
     exit 2
 fi
 
 abi_source=$1
 lib_source=$2
-loader_source=$3
-rust_source=$4
-output=$5
+dynamic_loader_source=$3
+userspace_loader_source=$4
+rust_source=$5
+output=$6
 script_directory=$(CDPATH='' cd -- "$(dirname "$0")" && pwd)
 repository=$(CDPATH='' cd -- "$script_directory/.." && pwd)
 
@@ -25,8 +26,12 @@ if [ ! -f "$lib_source/CMakeLists.txt" ]; then
     echo "build-sysroot.sh: Lib source does not contain CMakeLists.txt" >&2
     exit 2
 fi
-if [ ! -f "$loader_source/CMakeLists.txt" ]; then
-    echo "build-sysroot.sh: Loader source does not contain CMakeLists.txt" >&2
+if [ ! -f "$dynamic_loader_source/CMakeLists.txt" ]; then
+    echo "build-sysroot.sh: Dynamic loader source does not contain CMakeLists.txt" >&2
+    exit 2
+fi
+if [ ! -f "$userspace_loader_source/CMakeLists.txt" ]; then
+    echo "build-sysroot.sh: Userspace loader source does not contain CMakeLists.txt" >&2
     exit 2
 fi
 if [ ! -f "$rust_source/Cargo.toml" ]; then
@@ -114,7 +119,7 @@ state_tool=$repository/scripts/sysroot-state.py
 state_inputs=$transaction/inputs.json
 capture_inputs() {
     python3 "$state_tool" inputs "$1" "$abi_source/Cargo.toml" "$abi_source/src" "$abi_source/include" "$lib_source" \
-        "$loader_source" "$rust_source" "$repository" \
+        "$dynamic_loader_source" "$userspace_loader_source" "$rust_source" "$repository" \
         "$rust_sysroot/lib/rustlib/src/rust/library" "$rust_sysroot/share/doc/rust/licenses" \
         "$rust_sysroot/share/doc/rust/COPYRIGHT-library.html"
 }
@@ -151,8 +156,8 @@ install -d "$staged_output/lib/hyper/$architecture"
 install -m 0644 "$repository/lib/hyper-native.ld" \
     "$staged_output/lib/hyper/$architecture/hyper-native.ld"
 
-loader_build_directory=$transaction/loader-build
-cmake -S "$loader_source" -B "$loader_build_directory" \
+dynamic_loader_build_directory=$transaction/dynamic-loader-build
+cmake -S "$dynamic_loader_source" -B "$dynamic_loader_build_directory" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_C_COMPILER="$compiler" \
     -DCMAKE_ASM_COMPILER="$compiler" \
@@ -165,8 +170,25 @@ cmake -S "$loader_source" -B "$loader_build_directory" \
     -DHYPER_LD="$linker" \
     -DHYPER_ARCH="$architecture" \
     -DHYPER_SYSROOT="$staged_output"
-cmake --build "$loader_build_directory"
-cmake --install "$loader_build_directory" --prefix "$staged_output"
+cmake --build "$dynamic_loader_build_directory"
+cmake --install "$dynamic_loader_build_directory" --prefix "$staged_output"
+
+userspace_loader_build_directory=$transaction/userspace-loader-build
+cmake -S "$userspace_loader_source" -B "$userspace_loader_build_directory" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER="$compiler" \
+    -DCMAKE_ASM_COMPILER="$compiler" \
+    -DCMAKE_SYSTEM_NAME=Generic \
+    -DCMAKE_C_FLAGS="$arch_flags" \
+    -DCMAKE_ASM_FLAGS="$arch_flags" \
+    -DCMAKE_SYSTEM_PROCESSOR="$architecture" \
+    -DCMAKE_C_COMPILER_TARGET="$c_target" \
+    -DCMAKE_ASM_COMPILER_TARGET="$c_target" \
+    -DHYPER_LD="$linker" \
+    -DHYPER_ARCH="$architecture" \
+    -DHYPER_SYSROOT="$staged_output"
+cmake --build "$userspace_loader_build_directory"
+cmake --install "$userspace_loader_build_directory" --prefix "$staged_output"
 
 install -d "$staged_output/bin"
 install -m 0755 "$repository/bin/hyper-clang" "$staged_output/bin/hyper-clang"
@@ -233,6 +255,7 @@ install -d "$staged_output/share/hyper"
     -o "$staged_output/bin/hyper-brand-elf"
 "$staged_output/bin/hyper-brand-elf" "$staged_output/lib/libhyper.so"
 "$staged_output/bin/hyper-brand-elf" "$staged_output/lib64/ld-hyper-$architecture.so"
+"$staged_output/bin/hyper-brand-elf" "$staged_output/lib64/userspace-loader-hyper-$architecture"
 
 python3 "$state_tool" link-id "$staged_output" "$state_inputs"
 # A changed build input must not be recorded as a successfully cached SDK.

@@ -17,7 +17,7 @@ PHDRS
 
 SECTIONS
 {
-    /* The kernel chooses the static-PIE load bias. Keep the link image at 0. */
+    /* The userspace loader chooses the PIE load bias. Keep the link image at 0. */
     . = SIZEOF_HEADERS;
     .image_identity :
     {

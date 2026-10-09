@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 set -eu
-if [ "$#" -ne 4 ]; then
-    echo "usage: sysroot-publication.sh ABI_SOURCE LIB_SOURCE LOADER_SOURCE RUST_SOURCE" >&2
+if [ "$#" -ne 5 ]; then
+    echo "usage: sysroot-publication.sh ABI_SOURCE LIB_SOURCE DYNAMIC_LOADER_SOURCE USERSPACE_LOADER_SOURCE RUST_SOURCE" >&2
     exit 2
 fi
 repository=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
@@ -18,7 +18,7 @@ printf 'old header\n' > "$output/include/obsolete.h"
 mkdir -p "$output/share/hyper/rust"
 printf 'old Rust SDK file\n' > "$output/share/hyper/rust/obsolete.rs"
 # Fail at the final host-tool build, after staging installation has finished.
-if HOST_CC=false sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$4" "$output" > "$temporary/failure.log" 2>&1; then
+if HOST_CC=false sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$4" "$5" "$output" > "$temporary/failure.log" 2>&1; then
     echo "expected host compiler failure" >&2
     exit 1
 fi
@@ -27,7 +27,7 @@ test "$(cat "$output/include/obsolete.h")" = 'old header'
 test "$(cat "$output/share/hyper/rust/obsolete.rs")" = 'old Rust SDK file'
 test ! -e "$output/lib"
 test ! -e "$output.publish-lock"
-if ! sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$4" "$output" > "$temporary/success.log" 2>&1; then
+if ! sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$4" "$5" "$output" > "$temporary/success.log" 2>&1; then
     cat "$temporary/success.log" >&2
     exit 1
 fi
@@ -35,11 +35,12 @@ test ! -e "$output/include/obsolete.h"
 test ! -e "$output/share/hyper/rust/obsolete.rs"
 test -f "$output/include/hyper/native.h"
 test -f "$output/lib/libhyper.a"
+test -f "$output/lib64/userspace-loader-hyper-${HYPER_ARCH:-aarch64}"
 test -x "$output/bin/hyper-brand-elf"
 test -x "$output/bin/hyper-cargo"
 test -f "$output/share/hyper/rust/hyper-os/Cargo.toml"
 # Nested source modules must survive SDK publication with their relative paths.
-cmp "$4/hyper-os/src/fs/metadata.rs" \
+cmp "$5/hyper-os/src/fs/metadata.rs" \
     "$output/share/hyper/rust/hyper-os/src/fs/metadata.rs"
 test -f "$output/share/hyper/rust/hyper-service/Cargo.toml"
 test -f "$output/share/hyper/rust/hyper-vm-image/Cargo.toml"
@@ -55,7 +56,7 @@ exec /bin/mv "$@"
 MOVE
 chmod +x "$temporary/bin/mv"
 printf 'preserved\n' > "$output/rollback-marker"
-if PATH="$temporary/bin:$PATH" sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$4" "$output" > "$temporary/rename.log" 2>&1; then
+if PATH="$temporary/bin:$PATH" sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$4" "$5" "$output" > "$temporary/rename.log" 2>&1; then
     echo "expected publication rename failure" >&2
     exit 1
 fi
@@ -64,7 +65,7 @@ test -f "$output/lib/libhyper.a"
 test ! -e "$output.publish-lock"
 # A second publisher must leave the completed output untouched.
 mkdir "$output.publish-lock"
-if sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$4" "$output" > "$temporary/locked.log" 2>&1; then
+if sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$4" "$5" "$output" > "$temporary/locked.log" 2>&1; then
     echo "concurrent publisher was not rejected" >&2
     exit 1
 fi

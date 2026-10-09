@@ -195,8 +195,37 @@ pub fn run() {
     assert_eq!(std::fs::read(&path).unwrap(), b"shared ramfs");
     std::fs::remove_file(path).unwrap();
     std::fs::remove_dir(directory).unwrap();
+    rejected_executable_is_a_spawn_error();
     concurrent_spawn_and_retirement();
     println!("HYPER_STD_PROCESSES_OK");
+}
+
+fn rejected_executable_is_a_spawn_error() {
+    use std::os::hyper::fs::PermissionsExt;
+    let path = format!("/std-invalid-image-{}", std::process::id());
+    std::fs::write(&path, b"not an ELF image").unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    // ELF admission now runs after the kernel has consumed the builder.
+    // Both piped endpoints and the committed child must retire on this path.
+    for _ in 0..8 {
+        let result = Command::new(&path)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn();
+        assert!(
+            result.is_err(),
+            "malformed executable was reported as started"
+        );
+    }
+    std::fs::remove_file(path).unwrap();
+    assert!(
+        command("null")
+            .stdout(Stdio::null())
+            .status()
+            .unwrap()
+            .success()
+    );
 }
 
 fn concurrent_spawn_and_retirement() {

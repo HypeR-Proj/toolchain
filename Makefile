@@ -15,7 +15,8 @@ $(error unsupported Native ARCH '$(ARCH)')
 endif
 ABI_SOURCE ?=
 LIB_SOURCE ?=
-LOADER_SOURCE ?=
+USERSPACE_LOADER_SOURCE ?=
+DYNAMIC_LOADER_SOURCE ?=
 RUST_SOURCE ?=
 OUTPUT ?= target/sysroot/$(ARCH)
 TEST_OUTPUT ?= target/tests/$(ARCH)
@@ -28,11 +29,12 @@ RUST_SMOKE_MANIFEST ?= tests/rust-smoke/Cargo.toml
 verify-sources:
 	@test -n "$(ABI_SOURCE)" || { echo "ABI_SOURCE is required" >&2; exit 2; }
 	@test -n "$(LIB_SOURCE)" || { echo "LIB_SOURCE is required" >&2; exit 2; }
-	@test -n "$(LOADER_SOURCE)" || { echo "LOADER_SOURCE is required" >&2; exit 2; }
+	@test -n "$(DYNAMIC_LOADER_SOURCE)" || { echo "DYNAMIC_LOADER_SOURCE is required" >&2; exit 2; }
+	@test -n "$(USERSPACE_LOADER_SOURCE)" || { echo "USERSPACE_LOADER_SOURCE is required" >&2; exit 2; }
 	@test -n "$(RUST_SOURCE)" || { echo "RUST_SOURCE is required" >&2; exit 2; }
 
 sysroot: verify-sources
-	sh scripts/build-sysroot.sh "$(ABI_SOURCE)" "$(LIB_SOURCE)" "$(LOADER_SOURCE)" "$(RUST_SOURCE)" "$(OUTPUT)"
+	sh scripts/build-sysroot.sh "$(ABI_SOURCE)" "$(LIB_SOURCE)" "$(DYNAMIC_LOADER_SOURCE)" "$(USERSPACE_LOADER_SOURCE)" "$(RUST_SOURCE)" "$(OUTPUT)"
 
 check: sysroot test-publication
 	mkdir -p "$(TEST_OUTPUT)"
@@ -84,10 +86,11 @@ check: sysroot test-publication
 	test -s "$(OUTPUT)/share/hyper/manifest"
 	sh scripts/check-rust-std.sh "$(OUTPUT)" "$(TEST_OUTPUT)/std" tests/std-smoke/Cargo.toml
 	sh scripts/check-std-sync.sh
-	sh scripts/check-loader-arch.sh
+	sh scripts/check-dynamic-loader.sh
+	sh scripts/check-userspace-loader.sh
 
 test-publication: verify-sources
-	sh tests/sysroot-publication.sh "$(ABI_SOURCE)" "$(LIB_SOURCE)" "$(LOADER_SOURCE)" "$(RUST_SOURCE)"
+	sh tests/sysroot-publication.sh "$(ABI_SOURCE)" "$(LIB_SOURCE)" "$(DYNAMIC_LOADER_SOURCE)" "$(USERSPACE_LOADER_SOURCE)" "$(RUST_SOURCE)"
 
 clean:
 	rm -rf target
