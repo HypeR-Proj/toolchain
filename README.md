@@ -31,7 +31,8 @@ Native architectures.
 - compile-time and link-time consumer smoke tests.
 
 Native images are little-endian ELF64 `ET_DYN` files. Dynamic executables use
-`/lib/ld-hyper-aarch64.so` or `/lib/ld-hyper-riscv64.so`, eager binding, and `libhyper.so`; static
+`/lib/aarch64-hyper-hyper/ld-hyper-aarch64.so` or
+`/lib/riscv64-hyper-hyper/ld-hyper-riscv64.so`, eager binding, and `libhyper.so`; static
 images use `libhyper.a` and no interpreter. Both modes reject
 writable-executable segments and executable stacks. The driver uses LLD, links
 at zero for Kernel-selected placement, and validates the completed image before
@@ -116,7 +117,7 @@ RISC-V uses the LP64D C/Rust calling convention, a 16-byte aligned stack and
 `riscv64-unknown-hyper` for std (`riscv64gc-unknown-none-elf` for no_std).
 `tp` holds the runtime's opaque per-thread state, initially zero; key-based TLS
 is shared with AArch64. Compiler ELF TLS remains unsupported. The interpreter
-is `/lib/ld-hyper-riscv64.so`; static PIE and dynamic executables use the same
+is `/lib/riscv64-hyper-hyper/ld-hyper-riscv64.so`; static PIE and dynamic executables use the same
 runtime sources. RISC-V dynamic relocations are RELATIVE, 64 and JUMP_SLOT;
 COPY, TLS and resolver relocations are rejected.
 
