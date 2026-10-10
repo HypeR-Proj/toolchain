@@ -103,7 +103,6 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 transaction=$(mktemp -d "$output_parent/.hyper-sysroot.XXXXXX")
-build_directory=$transaction/build
 staged_output=$transaction/sysroot
 
 # Warm the pinned rust-src dependency graph before Native consumers use
@@ -132,23 +131,27 @@ fi
 RUSTC_BOOTSTRAP=1 "${HYPER_CARGO_DRIVER:-cargo}" fetch \
     --manifest-path "$rust_library" --locked --target "$rust_target"
 
-cmake -S "$lib_source" -B "$build_directory" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_C_COMPILER="$compiler" \
-    -DCMAKE_ASM_COMPILER="$compiler" \
-    -DCMAKE_AR="$archiver" \
-    -DCMAKE_RANLIB="$archive_indexer" \
-    -DCMAKE_SYSTEM_NAME=Generic \
-    -DCMAKE_C_FLAGS="$arch_flags" \
-    -DCMAKE_ASM_FLAGS="$arch_flags" \
-    -DCMAKE_SYSTEM_PROCESSOR="$architecture" \
-    -DCMAKE_C_COMPILER_TARGET="$c_target" \
-    -DCMAKE_ASM_COMPILER_TARGET="$c_target" \
-    -DHYPER_LD="$linker" \
-    -DHYPER_ARCH="$architecture" \
-    -DHYPER_ABI_INCLUDE_DIR="$abi_source/include"
-cmake --build "$build_directory"
-cmake --install "$build_directory" --prefix "$staged_output"
+# One template owns native compiler setup; each component has a content-checked
+# artifact cache independent of final SDK staging and atomic publication.
+build_component() {
+    component_name=$1
+    component_source=$2
+    shift 2
+    python3 "$repository/scripts/build-cmake-component.py" \
+        --source "$component_source" --cache "$output.components/$component_name" \
+        --output "$staged_output" --inputs "$state_inputs" \
+        --dependency "$abi_source/include" --dependency "$staged_output/include" \
+        --dependency "$staged_output/lib" -- \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_C_COMPILER="$compiler" -DCMAKE_ASM_COMPILER="$compiler" \
+        -DCMAKE_AR="$archiver" -DCMAKE_RANLIB="$archive_indexer" \
+        -DCMAKE_SYSTEM_NAME=Generic -DCMAKE_SYSTEM_PROCESSOR="$architecture" \
+        -DCMAKE_C_FLAGS="$arch_flags" -DCMAKE_ASM_FLAGS="$arch_flags" \
+        -DCMAKE_C_COMPILER_TARGET="$c_target" -DCMAKE_ASM_COMPILER_TARGET="$c_target" \
+        -DHYPER_LD="$linker" -DHYPER_ARCH="$architecture" "$@"
+}
+
+build_component runtime "$lib_source" -DHYPER_ABI_INCLUDE_DIR="$abi_source/include"
 
 install -d "$staged_output/include/hyper"
 install -m 0644 "$abi_source/include/hyper/native.h" "$staged_output/include/hyper/native.h"
@@ -156,39 +159,8 @@ install -d "$staged_output/lib/hyper/$architecture"
 install -m 0644 "$repository/lib/hyper-native.ld" \
     "$staged_output/lib/hyper/$architecture/hyper-native.ld"
 
-dynamic_loader_build_directory=$transaction/dynamic-loader-build
-cmake -S "$dynamic_loader_source" -B "$dynamic_loader_build_directory" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_C_COMPILER="$compiler" \
-    -DCMAKE_ASM_COMPILER="$compiler" \
-    -DCMAKE_SYSTEM_NAME=Generic \
-    -DCMAKE_C_FLAGS="$arch_flags" \
-    -DCMAKE_ASM_FLAGS="$arch_flags" \
-    -DCMAKE_SYSTEM_PROCESSOR="$architecture" \
-    -DCMAKE_C_COMPILER_TARGET="$c_target" \
-    -DCMAKE_ASM_COMPILER_TARGET="$c_target" \
-    -DHYPER_LD="$linker" \
-    -DHYPER_ARCH="$architecture" \
-    -DHYPER_SYSROOT="$staged_output"
-cmake --build "$dynamic_loader_build_directory"
-cmake --install "$dynamic_loader_build_directory" --prefix "$staged_output"
-
-userspace_loader_build_directory=$transaction/userspace-loader-build
-cmake -S "$userspace_loader_source" -B "$userspace_loader_build_directory" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_C_COMPILER="$compiler" \
-    -DCMAKE_ASM_COMPILER="$compiler" \
-    -DCMAKE_SYSTEM_NAME=Generic \
-    -DCMAKE_C_FLAGS="$arch_flags" \
-    -DCMAKE_ASM_FLAGS="$arch_flags" \
-    -DCMAKE_SYSTEM_PROCESSOR="$architecture" \
-    -DCMAKE_C_COMPILER_TARGET="$c_target" \
-    -DCMAKE_ASM_COMPILER_TARGET="$c_target" \
-    -DHYPER_LD="$linker" \
-    -DHYPER_ARCH="$architecture" \
-    -DHYPER_SYSROOT="$staged_output"
-cmake --build "$userspace_loader_build_directory"
-cmake --install "$userspace_loader_build_directory" --prefix "$staged_output"
+build_component dynamic-loader "$dynamic_loader_source" -DHYPER_SYSROOT="$staged_output"
+build_component userspace-loader "$userspace_loader_source" -DHYPER_SYSROOT="$staged_output"
 
 install -d "$staged_output/bin"
 install -m 0755 "$repository/bin/hyper-clang" "$staged_output/bin/hyper-clang"

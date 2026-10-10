@@ -58,6 +58,13 @@ compiler used to build tools that run during linking. Override `HYPER_LD`,
 `LLVM_AR`, and `LLVM_RANLIB` when the corresponding LLVM tools are not
 available on `PATH`.
 
+The native runtime and both loaders use a common CMake build template with
+independent content-checked caches under `<sdk-output>.components/`. SDK
+assembly restores unchanged components into staging; publication still replaces
+the SDK only after all components and input checks succeed. See
+[Native component builds](../../mk/README.md) for the cache, application
+templates and shared-library packaging contracts.
+
 ## Rust allocation support
 
 Freestanding (`HYPER_RUST_STD=0`) builds rebuild `core` and `alloc` with the application's
