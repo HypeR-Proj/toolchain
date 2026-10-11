@@ -314,12 +314,22 @@ pub fn scoped_startup_root(startup: &mut hyper_os::startup::Startup<'_>) {
     let selected = root.open_directory(&base, rights).unwrap();
     let cursor = root.scope_at(&selected, rights).unwrap();
     let program = std::env::args().next().unwrap();
-    let executable = root.open(&program, FileRights::EXECUTE).unwrap();
+    let executable = root
+        .open(
+            &program,
+            FileRights::READ
+                .union(FileRights::EXECUTE)
+                .union(FileRights::PROTECT)
+                .union(FileRights::DUPLICATE)
+                .union(FileRights::TRANSFER),
+        )
+        .unwrap();
     let builder = ProcessBuilder::create(
         startup.borrow(TASK_FACTORY).unwrap(),
         startup.borrow(TASK_GROUP).unwrap(),
         startup.borrow(RESOURCE_DOMAIN).unwrap(),
         executable.as_handle_ref(),
+        startup.borrow(hyper_os::startup::CHILD_LOADER).unwrap(),
     )
     .unwrap();
     builder.set_name("std-root-cursor").unwrap();

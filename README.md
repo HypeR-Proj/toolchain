@@ -8,7 +8,8 @@ SPDX-License-Identifier: Apache-2.0
 HypeR Toolchain turns LLVM/Clang and the in-tree Native ABI and runtime sources
 into a consumable Native application SDK. It owns
 compiler-driver defaults, target profiles, sysroot assembly, and the Native PIE
-link contract. The loaders and runtime under `lib/` implement userspace startup.
+link contract. The runtime and formal loader under `lib/`, together with the
+static loader under `bootstrap/stage1/`, implement userspace startup.
 
 The top-level build owns product composition. System applications consume only
 the assembled SDK output and do not reach back into these source directories.
@@ -38,10 +39,21 @@ writable-executable segments and executable stacks. The driver uses LLD and
 links at zero; the userspace loader selects the runtime placement. The driver
 validates the completed image before applying the HypeR OSABI identity.
 
-SDK assembly also builds `userspace-loader-hyper-<arch>` and installs it beside
-`ld-hyper-<arch>.so` in `lib64/`. It is a restricted bootstrap ELF with no
-interpreter, runtime relocations or writable globals. Both static and dynamic
-applications start through it; it is not named by an application's `PT_INTERP`.
+Programs owned by `bootstrap/stage1/` are static-only. `hyper-clang` uses Cargo's
+canonical manifest directory (or the working directory for direct invocations)
+to reject dynamic executable and shared-object links in that subtree. Build
+these packages with `HYPER_LINK_MODE=static`, or use `make app` / `make app-boot`.
+Host tests and check-only compilation remain available. Every static link also
+checks the finished ELF for the static-image contract, rejecting an interpreter
+or `DT_NEEDED` even when extra linker options were supplied.
+
+SDK assembly builds `userspace-loader-hyper-<arch>` and `ld-hyper-<arch>.so`
+as restricted executable-loader ELFs and stages them in `lib64/`. The bootstrap
+loader accepts static executables only. The formal loader maps both static and
+dynamic applications and performs relocations and dependency loading when
+needed. Process creation selects the loader through an explicit executable
+capability. `PT_INTERP` is a userspace image contract, not a kernel path lookup.
+Product composition may place the formal loader on a separate system volume.
 
 ## Build a sysroot
 
@@ -83,8 +95,9 @@ compiler libraries.
 
 - `sdk/abi/` owns machine-visible syscall values and layouts.
 - `lib/hyper/` owns Native C runtime semantics.
-- `lib/userspace-loader/` owns application ELF mapping and startup stack encoding.
-- `lib/dynamic-loader/` owns userspace ELF dependency and relocation policy.
+- `bootstrap/stage1/userspace-loader/` owns static bootstrap loading.
+- `lib/elf-loader/` owns shared ELF mapping and startup stack encoding.
+- `lib/dynamic-loader/` owns formal application loading, dependencies and relocations.
 - `lib/rust/` owns raw and safe Native Rust bindings plus language entry.
 - `sdk/toolchain/` owns compiler and SDK assembly mechanics.
 - The repository root owns integration and release composition.

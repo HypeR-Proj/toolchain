@@ -15,3 +15,7 @@ hyper-rt = { path = "../../../../lib/rust/hyper-rt" }
 hyper-service = { path = "../../../../lib/rust/hyper-service" }
 hyper-sys = { path = "../../../../lib/rust/hyper-sys" }
 hyper-vm-image = { path = "../../../../lib/rust/hyper-vm-image" }
+hyper-filesystem = { path = "../../../../lib/rust/hyper-filesystem" }
+hyper-block = { path = "../../../../lib/rust/hyper-block" }
+hyper-fatfs = { path = "../../../../lib/rust/hyper-fatfs" }
+hyper-erofs = { path = "../../../../lib/rust/hyper-erofs" }

@@ -83,6 +83,7 @@ check: sysroot test-publication
 		"$(TEST_OUTPUT)/smoke" "$(TEST_OUTPUT)/smoke-static" \
 		"$(TEST_OUTPUT)/rust/$(RUST_TARGET)/release/hyper-rust-smoke"
 	python3 tests/architecture.py "$(abspath $(OUTPUT))" "$(TEST_OUTPUT)/smoke"
+	python3 tests/bootstrap-link.py "$(abspath $(OUTPUT))" "$(SMOKE_SOURCE)"
 	test -s "$(OUTPUT)/share/hyper/manifest"
 	sh scripts/check-rust-std.sh "$(OUTPUT)" "$(TEST_OUTPUT)/std" tests/std-smoke/Cargo.toml
 	sh scripts/check-std-sync.sh

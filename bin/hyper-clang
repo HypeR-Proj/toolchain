@@ -52,6 +52,22 @@ if [ "$expect_output" = true ]; then
     exit 2
 fi
 
+# Cargo exports the owning manifest directory to rustc and its linker. Enforce
+# the bootstrap boundary here as well as in Make, including direct hyper-cargo
+# builds. Resolve symlinks/parent components before classifying the source.
+source_directory=${CARGO_MANIFEST_DIR:-$PWD}
+source_directory=$(CDPATH='' cd -- "$source_directory" && pwd -P)
+static_only=false
+case "$source_directory/" in
+    */bootstrap/stage1/*) static_only=true ;;
+esac
+if [ "$linking" = true ] && [ "$static_only" = true ]; then
+    if [ "$link_mode" != static ] || [ "$output_kind" != executable ]; then
+        echo "hyper-clang: bootstrap/stage1 only permits static executables; use HYPER_LINK_MODE=static (or make app-boot)" >&2
+        exit 2
+    fi
+fi
+
 case "$architecture" in
     aarch64)
         target=aarch64-none-elf
@@ -143,3 +159,11 @@ else
     exit 2
 fi
 "$brand" "$output"
+if [ "$static_only" = true ] || [ "$link_mode" = static ]; then
+    # Inspect the result, not just driver flags: -Wl/response-file options must
+    # not accidentally introduce an interpreter or a DT_NEEDED dependency.
+    if ! "$brand" --check-static "$output"; then
+        rm -f -- "$output"
+        exit 1
+    fi
+fi

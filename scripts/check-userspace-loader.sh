@@ -11,9 +11,13 @@ case "$(uname -s)" in
 esac
 for architecture in aarch64 riscv64; do
     case "$architecture" in riscv64) flags=-DTEST_RISCV ;; *) flags= ;; esac
-    "${HOST_CC:-clang}" -std=c17 -Wall -Wextra -Werror $flags \
-        -fsanitize="$sanitizers" -fno-omit-frame-pointer \
-        -idirafter "$repository/lib/hyper/include" -idirafter "$repository/sdk/abi/include" \
-        "$repository/lib/userspace-loader/tests/startup.c" -o "$temporary/startup"
-    "$temporary/startup"
+    for mode in static dynamic; do
+        case "$mode" in dynamic) mode_flags=-DTEST_DYNAMIC_LOADER ;; *) mode_flags= ;; esac
+        "${HOST_CC:-clang}" -std=c17 -Wall -Wextra -Werror $flags $mode_flags \
+            -fsanitize="$sanitizers" -fno-omit-frame-pointer \
+            -I "$repository/lib/elf-loader" \
+            -idirafter "$repository/lib/hyper/include" -idirafter "$repository/sdk/abi/include" \
+            "$repository/bootstrap/stage1/userspace-loader/tests/startup.c" -o "$temporary/startup"
+        "$temporary/startup"
+    done
 done
