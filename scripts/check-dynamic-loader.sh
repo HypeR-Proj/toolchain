@@ -26,8 +26,8 @@ for architecture in aarch64 riscv64; do
     esac
     "${HOST_CC:-clang}" -std=c17 -Wall -Wextra -Werror \
         -fsanitize="$sanitizers" -fno-omit-frame-pointer $runtime_flags \
-        -I "$repository/lib/elf-loader" \
-        -idirafter "$repository/lib/hyper/include" -idirafter "$repository/sdk/abi/include" \
+        -I "$repository/lib/dynamic-loader/elf" \
+        -idirafter "$repository/stdlib/hyper/include" -idirafter "$repository/sdk/abi/include" \
         "$repository/lib/dynamic-loader/tests/runtime.c" -o "$temporary/runtime"
     "$temporary/runtime"
 done

@@ -7,10 +7,6 @@ name = "hyper-abi"
 version = "0.0.0"
 
 [[package]]
-name = "hyper-block"
-version = "0.0.0"
-
-[[package]]
 name = "hyper-os"
 version = "0.0.0"
 dependencies = [
@@ -33,16 +29,6 @@ version = "0.0.0"
 dependencies = [
  "hyper-os",
  "hyper-rt",
- "hyper-service",
- "hyper-vm-image",
-]
-
-[[package]]
-name = "hyper-service"
-version = "0.0.0"
-dependencies = [
- "hyper-block",
- "hyper-os",
 ]
 
 [[package]]
@@ -51,21 +37,6 @@ version = "0.0.0"
 dependencies = [
  "hyper-abi",
 ]
-
-[[package]]
-name = "hyper-vm-image"
-version = "0.0.0"
-dependencies = [
- "hyper-abi",
-]
-
-[[patch.unused]]
-name = "hyper-erofs"
-version = "0.0.0"
-
-[[patch.unused]]
-name = "hyper-fatfs"
-version = "0.0.0"
 
 [[patch.unused]]
 name = "hyper-filesystem"

@@ -12,12 +12,15 @@ esac
 for architecture in aarch64 riscv64; do
     case "$architecture" in riscv64) flags=-DTEST_RISCV ;; *) flags= ;; esac
     for mode in static dynamic; do
-        case "$mode" in dynamic) mode_flags=-DTEST_DYNAMIC_LOADER ;; *) mode_flags= ;; esac
+        case "$mode" in
+            dynamic) mode_flags=-DTEST_DYNAMIC_LOADER; primitives=$repository/lib/dynamic-loader/elf ;;
+            *) mode_flags=; primitives=$repository/bootstrap/stage1/userspace-loader/elf ;;
+        esac
         "${HOST_CC:-clang}" -std=c17 -Wall -Wextra -Werror $flags $mode_flags \
             -fsanitize="$sanitizers" -fno-omit-frame-pointer \
-            -I "$repository/lib/elf-loader" \
-            -idirafter "$repository/lib/hyper/include" -idirafter "$repository/sdk/abi/include" \
-            "$repository/bootstrap/stage1/userspace-loader/tests/startup.c" -o "$temporary/startup"
+            -I "$primitives" \
+            -idirafter "$repository/stdlib/hyper/include" -idirafter "$repository/sdk/abi/include" \
+            "$repository/sdk/toolchain/tests/loader-startup.c" -o "$temporary/startup"
         "$temporary/startup"
     done
 done

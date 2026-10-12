@@ -42,8 +42,10 @@ test -f "$output/share/hyper/rust/hyper-os/Cargo.toml"
 # Nested source modules must survive SDK publication with their relative paths.
 cmp "$5/hyper-os/src/fs/metadata.rs" \
     "$output/share/hyper/rust/hyper-os/src/fs/metadata.rs"
-test -f "$output/share/hyper/rust/hyper-service/Cargo.toml"
-test -f "$output/share/hyper/rust/hyper-vm-image/Cargo.toml"
+test -f "$output/share/hyper/rust/hyper-filesystem/Cargo.toml"
+for library in hyper-service hyper-vm-image hyper-block hyper-fatfs hyper-erofs; do
+    test ! -e "$output/share/hyper/rust/$library"
+done
 test ! -e "$output.publish-lock"
 # Fail the final rename after the old sysroot has moved to the backup.
 mkdir "$temporary/bin"

@@ -94,11 +94,12 @@ compiler libraries.
 ## Component boundaries
 
 - `sdk/abi/` owns machine-visible syscall values and layouts.
-- `lib/hyper/` owns Native C runtime semantics.
+- `stdlib/hyper/` owns Native C runtime semantics.
 - `bootstrap/stage1/userspace-loader/` owns static bootstrap loading.
-- `lib/elf-loader/` owns shared ELF mapping and startup stack encoding.
+- `lib/dynamic-loader/elf/` owns formal ELF mapping and startup stack encoding; bootstrap owns a separate
+  implementation below its loader source directory.
 - `lib/dynamic-loader/` owns formal application loading, dependencies and relocations.
-- `lib/rust/` owns raw and safe Native Rust bindings plus language entry.
+- `stdlib/rust/` owns raw and safe Native Rust bindings plus language entry.
 - `sdk/toolchain/` owns compiler and SDK assembly mechanics.
 - The repository root owns integration and release composition.
 - Foreign OS compatibility is outside the Native SDK contract; no such
@@ -171,5 +172,5 @@ layouts. The kernel enforces mapping permissions and charges committed pages
 to the process resource domain.
 `std::thread::Builder::stack_size` selects a worker's initial extent. Main and
 worker stacks share the runtime's guarded reservation and explicit growth APIs;
-see [guarded, growable stacks](../../lib/hyper/README.md#guarded-growable-stacks) for capacity
+see [guarded, growable stacks](../../stdlib/hyper/README.md#guarded-growable-stacks) for capacity
 and lifetime rules. Applications cannot select kernel thread stack sizes.
