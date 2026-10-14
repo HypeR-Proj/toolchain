@@ -34,6 +34,7 @@ static _Alignas(16) unsigned char packet[MESSAGE_BYTES];
 static size_t packet_size;
 static size_t mappings, closes;
 static int map_failure;
+static uint32_t expected_mapping_mode = HYPER_NATIVE_PRIVATE_MAPPING_COPY_ON_WRITE;
 static int protection_live, deny_protect;
 static size_t read_limit;
 static jmp_buf handoff;
@@ -112,7 +113,7 @@ hyper_native_status_t hyper_vmar_map_file(hyper_native_handle_t vmar, hyper_nati
 {
 	assert(protection_live);
 	assert(vmar == 42 && file == 41 && protection == 45 && size == sizeof(*request));
-	assert(request->mode == HYPER_NATIVE_PRIVATE_MAPPING_COPY_ON_WRITE);
+	assert(request->mode == expected_mapping_mode);
 	assert(!(request->permissions & HYPER_NATIVE_VMAR_PERMISSION_WRITE) ||
 	       !(request->permissions & HYPER_NATIVE_VMAR_PERMISSION_EXECUTE));
 	++mappings;
@@ -215,41 +216,44 @@ static void run_loader(void)
 		__hyper_userspace_start(43, (uintptr_t)initial_stack + sizeof(initial_stack));
 }
 
+static hyper_native_status_t load_test_image(ElfImage *image)
+{
+	return elf_image_load(image, 42, 41, 0x400000, 0x10000000, 0);
+}
+
 static void parser_cases(void)
 {
 	ElfImage image;
 	reset_image();
 	deny_protect = 1;
-	assert(elf_image_load(&image, 42, 41, 0x400000, 0x10000000, 0) ==
-	       HYPER_NATIVE_STATUS_ACCESS_DENIED);
+	assert(load_test_image(&image) == HYPER_NATIVE_STATUS_ACCESS_DENIED);
 	assert(mappings == 0 && closes == 0);
 	reset_image();
 	read_limit = 7; /* Protected reads may complete short, even for ELF headers. */
-	assert(elf_image_load(&image, 42, 41, 0x400000, 0x10000000, 0) == 0);
+	assert(load_test_image(&image) == 0);
 	assert(mappings == 3 && closes == 1 && !protection_live);
 	reset_image();
-	assert(elf_image_load(&image, 42, 41, 0x400000, 0x10000000, 0) == 0);
+	assert(load_test_image(&image) == 0);
 	assert(mappings == 3 && image.entry == 0x401000 && image.program_headers == 0x400040);
 	reset_image();
 	headers()[2].flags = 7;
-	assert(elf_image_load(&image, 42, 41, 0x400000, 0x10000000, 0) == BAD_IMAGE);
+	assert(load_test_image(&image) == BAD_IMAGE);
 	assert(mappings == 0);
 	reset_image();
 	headers()[2].vaddr = 4096;
-	assert(elf_image_load(&image, 42, 41, 0x400000, 0x10000000, 0) == BAD_IMAGE);
+	assert(load_test_image(&image) == BAD_IMAGE);
 	reset_image();
 	headers()[2].filesz = sizeof(file_bytes);
-	assert(elf_image_load(&image, 42, 41, 0x400000, 0x10000000, 0) == BAD_IMAGE);
+	assert(load_test_image(&image) == BAD_IMAGE);
 	reset_image();
 	((Elf64_Ehdr *)file_bytes)->entry = 8192;
-	assert(elf_image_load(&image, 42, 41, 0x400000, 0x10000000, 0) == BAD_IMAGE);
+	assert(load_test_image(&image) == BAD_IMAGE);
 	reset_image();
 	headers()[2].vaddr = UINT64_MAX - 5;
-	assert(elf_image_load(&image, 42, 41, 0x400000, 0x10000000, 0) == BAD_IMAGE);
+	assert(load_test_image(&image) == BAD_IMAGE);
 	reset_image();
 	map_failure = 1;
-	assert(elf_image_load(&image, 42, 41, 0x400000, 0x10000000, 0) ==
-	       HYPER_NATIVE_STATUS_NO_MEMORY);
+	assert(load_test_image(&image) == HYPER_NATIVE_STATUS_NO_MEMORY);
 	assert(closes == 1);
 }
 
