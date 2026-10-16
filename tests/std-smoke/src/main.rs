@@ -283,7 +283,7 @@ fn native_thread_stop() {
 }
 
 // Runtime operands prevent constant folding; distinct per-thread accumulators
-// cross both immediate and blocking syscalls while competing for execution.
+// cross both nonblocking and blocking syscalls while competing for execution.
 fn floating_point_threads() {
     let workers: Vec<_> = (1..=8)
         .map(|index| {
