@@ -88,9 +88,17 @@ fn main() {
     }
     let mut startup = hyper_rt::process::startup().unwrap();
     assert!(hyper_rt::process::startup().is_err());
-    assert!(hyper_rt::process::stdin().is_ok() || hyper_rt::process::stdin_stream().unwrap().is_some());
-    assert!(hyper_rt::process::stdout().is_ok() || hyper_rt::process::stdout_stream().unwrap().is_some());
-    assert!(hyper_rt::process::stderr().is_ok() || hyper_rt::process::stderr_stream().unwrap().is_some());
+    assert!(
+        hyper_rt::process::stdin().is_ok() || hyper_rt::process::stdin_stream().unwrap().is_some()
+    );
+    assert!(
+        hyper_rt::process::stdout().is_ok()
+            || hyper_rt::process::stdout_stream().unwrap().is_some()
+    );
+    assert!(
+        hyper_rt::process::stderr().is_ok()
+            || hyper_rt::process::stderr_stream().unwrap().is_some()
+    );
     bootstrap::run(startup.borrow(hyper_os::startup::ROOT_VMAR).unwrap());
     let cow_result = startup
         .borrow(hyper_os::startup::ROOT_VMAR)
@@ -133,6 +141,7 @@ fn main() {
     std::thread::park_timeout(Duration::from_millis(1));
     std::thread::sleep(Duration::from_millis(1));
     detached_native_exit();
+    thread_names();
     check_stack_growth();
     std::thread::Builder::new()
         .stack_size(64 * 1024)
@@ -231,6 +240,45 @@ fn main() {
         .write_all(b"HYPER_STD_STDERR_OK\n")
         .unwrap();
     println!("HYPER_STD_OK hello {}", args.name);
+}
+
+fn thread_names() {
+    use hyper_os::{Error, Status, thread::set_current_name};
+    let worker = std::thread::Builder::new()
+        .name("std-name-test".into())
+        .spawn(|| {
+            set_current_name("renamed-worker").unwrap();
+            set_current_name(&"a".repeat(64)).unwrap();
+            set_current_name(&"线程".repeat(10)).unwrap();
+            for name in [
+                "".to_owned(),
+                "a".repeat(65),
+                "bad\0name".into(),
+                "bad\nname".into(),
+                "bad\u{85}name".into(),
+            ] {
+                assert_eq!(
+                    set_current_name(&name),
+                    Err(Error::Status(Status::INVALID_ARGUMENT))
+                );
+            }
+            let invalid = [0xff_u8];
+            // SAFETY: this malformed UTF-8 byte is still readable input.
+            assert_eq!(
+                unsafe { hyper_sys::thread_set_current_name(invalid.as_ptr(), 1) },
+                hyper_sys::abi::HYPER_NATIVE_STATUS_INVALID_ARGUMENT
+            );
+            // SAFETY: the Native syscall validates this deliberately invalid user range.
+            assert_eq!(
+                unsafe { hyper_sys::thread_set_current_name(core::ptr::null(), 1) },
+                hyper_sys::abi::HYPER_NATIVE_STATUS_FAULT
+            );
+            // Runtime renaming changes the kernel label, not Rust's metadata.
+            assert_eq!(std::thread::current().name(), Some("std-name-test"));
+        })
+        .unwrap();
+    worker.join().unwrap();
+    println!("HYPER_STD_THREAD_NAMES_OK");
 }
 
 // Exercise the Native stop capability independently of std's cooperative join.
