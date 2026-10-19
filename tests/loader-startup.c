@@ -165,10 +165,20 @@ hyper_native_status_t hyper_byte_channel_write(hyper_native_handle_t channel, co
 	return 0;
 }
 
-_Noreturn void hyper_process_exit(int64_t status)
+hyper_call_result_t hyper_native_invoke6(uint64_t receiver, uint64_t operation, uint64_t status,
+					 uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f)
 {
-	exit_status = status;
+	assert(receiver == 46 && operation == HYPER_NATIVE_OP_PROCESS_EXIT);
+	assert(!b && !c && !d && !e && !f);
+	exit_status = (int64_t)status;
 	longjmp(handoff, 1);
+}
+
+hyper_native_status_t hyper_native_bind_invocation_handles(uint64_t execution, uint64_t factory,
+							   uint64_t system)
+{
+	assert(execution == 46 && factory == 47 && system == 48);
+	return HYPER_NATIVE_STATUS_OK;
 }
 
 #ifdef TEST_DYNAMIC_LOADER
@@ -200,6 +210,9 @@ static void prepare_packet(void)
 						.executable = 41,
 						.root_vmar = 42,
 						.stack_vmar = 44,
+						.execution_context = 46,
+						.object_factory = 47,
+						.system_info = 48,
 						.stack_base = (uintptr_t)initial_stack,
 						.stack_size = sizeof(initial_stack),
 						.loader_base = 0x100000,
@@ -269,10 +282,14 @@ static void stack_cases(void)
 	assert(hyper_elf_auxiliary(stack, HYPER_AUXV_STARTUP_CHANNEL) == 43);
 	assert(hyper_elf_auxiliary(stack, 7) == 0);
 	assert(hyper_elf_auxiliary(stack, HYPER_AUXV_LOADER_SIZE) == 0x5000);
-	assert(hyper_elf_auxiliary(stack, HYPER_AUXV_STARTUP_HANDLE_COUNT) == 2);
+	assert(hyper_elf_auxiliary(stack, HYPER_AUXV_STARTUP_HANDLE_COUNT) == 5);
 	const hyper_native_startup_handle_t *handles =
 		(const void *)hyper_elf_auxiliary(stack, HYPER_AUXV_STARTUP_HANDLES);
 	assert(handles[0].handle == 42 && handles[1].handle == 44);
+	assert(handles[2].handle == 46 && handles[3].handle == 47 && handles[4].handle == 48);
+	assert(handles[2].purpose == HYPER_NATIVE_STARTUP_HANDLE_PURPOSE_EXECUTION_CONTEXT);
+	assert(handles[3].purpose == HYPER_NATIVE_STARTUP_HANDLE_PURPOSE_OBJECT_FACTORY);
+	assert(handles[4].purpose == HYPER_NATIVE_STARTUP_HANDLE_PURPOSE_SYSTEM_INFO);
 	reset_image();
 	prepare_packet();
 	hyper_native_loader_startup_t *boot = (void *)packet;
@@ -312,7 +329,7 @@ static void maximum_packet(void)
 	reset_image();
 	prepare_packet();
 	hyper_native_loader_startup_t *boot = (void *)packet;
-	boot->handle_count = HYPER_NATIVE_STARTUP_MAX_HANDLES - 2;
+	boot->handle_count = HYPER_NATIVE_STARTUP_MAX_HANDLES - 5;
 	boot->data_size = HYPER_NATIVE_PROCESS_STARTUP_DATA_MAX_BYTES;
 	hyper_native_startup_handle_t *handles = (void *)(boot + 1);
 	for (size_t i = 0; i < boot->handle_count; ++i)
