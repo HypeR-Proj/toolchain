@@ -49,6 +49,23 @@ mod sys {
 use std::cell::UnsafeCell;
 use std::sync::Arc;
 
+#[test]
+fn thread_lifecycle_links_with_host_allocator() {
+    unsafe extern "C" {
+        fn hyper_runtime_thread_attach() -> i64;
+        fn hyper_runtime_thread_detach();
+    }
+    // Keep teardown reachable even on hosts that discard unused C functions
+    // before resolving their dependencies. Native heap behavior is tested in
+    // libhyper; this fixture uses the host allocator.
+    // SAFETY: Attach/detach run on the same test thread, with no Native TLS
+    // values retained beyond detach.
+    unsafe {
+        assert_eq!(hyper_runtime_thread_attach(), 0);
+        hyper_runtime_thread_detach();
+    }
+}
+
 struct Shared<T> {
     lock: T,
     value: UnsafeCell<usize>,

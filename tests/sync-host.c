@@ -1,9 +1,17 @@
 /* SPDX-FileCopyrightText: 2026 roolrz
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <hyper/heap.h>
 #include <hyper/syscall.h>
 #include <sched.h>
 #include <time.h>
+
+/* This fixture uses the host allocator, so thread teardown has no Native
+ * arena cache to release. The actual heap is covered by libhyper unit tests. */
+size_t hyper_heap_trim(void)
+{
+	return 0;
+}
 
 hyper_native_status_t hyper_thread_yield(void)
 {
