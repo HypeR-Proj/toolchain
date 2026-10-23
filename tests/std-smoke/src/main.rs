@@ -6,6 +6,7 @@ mod cow;
 mod files;
 mod processes;
 mod relay;
+mod scheduling;
 mod stack_workload;
 mod virtual_serial;
 mod wait_sets;
@@ -142,6 +143,11 @@ fn main() {
     std::thread::sleep(Duration::from_millis(1));
     detached_native_exit();
     thread_names();
+    let scheduling_result = scheduling::run();
+    assert!(
+        scheduling_result.is_ok(),
+        "scheduling regression: {scheduling_result:?}"
+    );
     check_stack_growth();
     std::thread::Builder::new()
         .stack_size(64 * 1024)
