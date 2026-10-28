@@ -37,6 +37,9 @@ static int map_failure;
 static uint32_t expected_mapping_mode = HYPER_NATIVE_PRIVATE_MAPPING_COPY_ON_WRITE;
 static int protection_live, deny_protect;
 static size_t read_limit;
+static size_t prefetch_count;
+static uint64_t prefetch_offset[32], prefetch_length[32];
+static int prefetch_failure;
 static jmp_buf handoff;
 static uintptr_t entered_stack, entered_entry;
 static int entered_dynamic;
@@ -85,6 +88,8 @@ static void reset_image(void)
 	map_failure = 0;
 	protection_live = deny_protect = 0;
 	read_limit = SIZE_MAX;
+	prefetch_count = 0;
+	prefetch_failure = 0;
 }
 
 hyper_call_result_t hyper_file_read_at(hyper_native_handle_t vmo, uint64_t offset, void *out,
@@ -139,6 +144,19 @@ hyper_call_result_t hyper_directory_open_file(hyper_native_handle_t dir, const v
 	(void)size;
 	(void)rights;
 	return (hyper_call_result_t){.status = HYPER_NATIVE_STATUS_NOT_FOUND};
+}
+
+hyper_call_result_t hyper_file_prefetch(hyper_native_handle_t file, uint64_t offset,
+					uint64_t length)
+{
+	assert(file == 41 && protection_live && !mappings);
+	assert(length && length <= HYPER_NATIVE_FILE_MAX_PREFETCH_BYTES);
+	assert(prefetch_count < 32);
+	prefetch_offset[prefetch_count] = offset;
+	prefetch_length[prefetch_count++] = length;
+	if (prefetch_failure)
+		return (hyper_call_result_t){.status = HYPER_NATIVE_STATUS_NO_MEMORY};
+	return (hyper_call_result_t){.value0 = length};
 }
 
 hyper_call_result_t hyper_file_protect(hyper_native_handle_t file)
@@ -248,10 +266,15 @@ static void parser_cases(void)
 	reset_image();
 	assert(load_test_image(&image) == 0);
 	assert(mappings == 3 && image.entry == 0x401000 && image.program_headers == 0x400040);
+	assert(prefetch_count == 2 && prefetch_offset[0] == 0 && prefetch_length[0] == 4096);
+	assert(prefetch_offset[1] == 0 && prefetch_length[1] == 12288);
+	reset_image();
+	prefetch_failure = 1;
+	assert(load_test_image(&image) == 0 && mappings == 3);
 	reset_image();
 	headers()[2].flags = 7;
 	assert(load_test_image(&image) == BAD_IMAGE);
-	assert(mappings == 0);
+	assert(mappings == 0 && prefetch_count == 1 && prefetch_length[0] == 4096);
 	reset_image();
 	headers()[2].vaddr = 4096;
 	assert(load_test_image(&image) == BAD_IMAGE);
@@ -437,8 +460,34 @@ static void relocation_cases(void)
 	assert(!hyper_elf_self_relocate(eh));
 }
 
+static void prefetch_cases(void)
+{
+	reset_image();
+	protection_live = 1;
+	Elf64_Phdr plan[] = {
+		{.type = 1, .offset = 8192, .filesz = 1, .memsz = 4096},
+		{.type = 1, .offset = 0, .filesz = 3000, .memsz = 4096},
+		{.type = 1, .offset = 4096, .filesz = 4096, .memsz = 4096},
+		{.type = 1, .offset = 16384, .filesz = 17, .memsz = 4096},
+		{.type = 1, .offset = 32768, .filesz = 0, .memsz = 4096},
+	};
+	elf_prefetch_loads(41, 16401, plan, 5);
+	assert(prefetch_count == 2);
+	assert(prefetch_offset[0] == 0 && prefetch_length[0] == 12288);
+	assert(prefetch_offset[1] == 16384 && prefetch_length[1] == 17);
+	prefetch_count = 0;
+	plan[0].offset = UINT64_MAX - 7;
+	plan[0].filesz = 16;
+	elf_prefetch_loads(41, UINT64_MAX, plan, 5);
+	assert(prefetch_count == 0);
+	plan[0] = (Elf64_Phdr){.type = 1, .filesz = 8 * 1024 * 1024, .memsz = 8 * 1024 * 1024};
+	elf_prefetch_loads(41, 8 * 1024 * 1024, plan, 1);
+	assert(prefetch_count == 1 && prefetch_length[0] == HYPER_NATIVE_FILE_MAX_PREFETCH_BYTES);
+}
+
 int main(void)
 {
+	prefetch_cases();
 	parser_cases();
 	stack_cases();
 	interpreter_cases();
