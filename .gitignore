@@ -7,3 +7,7 @@ __pycache__/
 *.pyc
 .config
 .config.old
+
+# Links supplied by the workspace manifest from lib-std.
+/rust-std
+/scripts/prepare-rust-std.py
