@@ -58,7 +58,22 @@
   "tests": [
     [
       "make",
-      "sdk-test"
+      "toolchain-test",
+      "ARCH=aarch64"
     ]
-  ]
+  ],
+  "cargo_context": {
+    "tests/rust-smoke/Cargo.toml": {
+      "workspace": null,
+      "membership": null,
+      "dependency_paths": {},
+      "inherited_dependencies": {}
+    },
+    "tests/std-smoke/Cargo.toml": {
+      "workspace": {},
+      "membership": null,
+      "dependency_paths": {},
+      "inherited_dependencies": {}
+    }
+  }
 }
