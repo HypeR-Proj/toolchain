@@ -79,6 +79,17 @@ SECTIONS
         *(.data .data.* .sdata .sdata.*)
     } :data
 
+    .init_array : ALIGN(8)
+    {
+        KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*)))
+        KEEP(*(.init_array))
+    } :data
+
+    .preinit_array : ALIGN(8)
+    {
+        KEEP(*(.preinit_array .preinit_array.*))
+    } :data
+
     /* PIC Rust core/alloc may introduce a GOT. Keep relocation targets in
      * writable data and never let an orphan extend the PT_DYNAMIC table. */
     .got : ALIGN(8)

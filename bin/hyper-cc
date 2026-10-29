@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 roolrz
+# SPDX-License-Identifier: Apache-2.0
+"""Standard C/C++ entry points over the Native compiler/link contract."""
+import os
+from pathlib import Path
+import sys
+import subprocess
+
+directory = Path(__file__).resolve().parent
+sdk = Path(os.environ.get("HYPER_SYSROOT", directory.parent)).resolve()
+cxx = Path(sys.argv[0]).name == "hyper-clang++"
+arguments = sys.argv[1:]
+linking = not any(arg in ("-c", "-E", "-S", "-M", "-MM") for arg in arguments)
+shared = "-shared" in arguments
+if shared:
+    raise SystemExit(
+        "standard C/C++ shared objects are not supported by this SDK subset"
+    )
+flags = ["-fhosted", "-D__HYPER__=1"]
+libraries = []
+if cxx:
+    os.environ["HYPER_CLANG"] = os.environ.get(
+        "HYPER_CXX", os.environ.get("HYPER_CLANG", "clang++")
+    )
+    flags += [
+        "-std=c++20",
+        "-nostdinc++",
+        "-I",
+        str(sdk / "include/c++/v1"),
+        "-fno-exceptions",
+        "-fno-rtti",
+    ]
+    libraries += ["-lc++"]
+if linking:
+    if not shared:
+        flags += [str(sdk / "lib/crt-std.o")]
+    libraries += ["-lc", "-lcompiler-builtins"]
+    arguments += ["-Wl,--start-group"] + libraries + ["-Wl,--end-group"]
+command = [str(directory / "hyper-clang")] + flags + arguments
+if not linking:
+    os.execv(command[0], command)
+result = subprocess.run(command)
+if result.returncode:
+    raise SystemExit(result.returncode)
+output = "a.out"
+for index, argument in enumerate(arguments):
+    if argument == "-o":
+        output = arguments[index + 1]
+    elif argument.startswith("-o") and len(argument) > 2:
+        output = argument[2:]
+result = subprocess.run([str(sdk / "bin/hyper-brand-elf"), "--check-standard", output])
+if result.returncode:
+    Path(output).unlink(missing_ok=True)
+raise SystemExit(result.returncode)

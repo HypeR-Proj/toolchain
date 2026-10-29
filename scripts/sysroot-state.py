@@ -15,7 +15,7 @@ import sys
 
 EXCLUDED = {".git", "target", "__pycache__"}
 ENVIRONMENT = (
-    "CLANG", "HOST_CC", "LLVM_AR", "LLVM_RANLIB", "HYPER_LD",
+    "CLANG", "HYPER_CXX", "HOST_CC", "LLVM_AR", "LLVM_RANLIB", "HYPER_LD",
     "HYPER_ARCH", "HYPER_CARGO_DRIVER", "HYPER_SDK_VERSION", "HYPER_SDK_SOURCE_REVISION",
     "CFLAGS", "CPPFLAGS", "ASMFLAGS", "LDFLAGS", "CMAKE_GENERATOR",
     "CMAKE_TOOLCHAIN_FILE", "CMAKE_PREFIX_PATH", "SDKROOT", "MACOSX_DEPLOYMENT_TARGET",
@@ -71,6 +71,8 @@ def inputs(paths):
         ("HYPER_CARGO_DRIVER", "cargo"), ("CMAKE_COMMAND", "cmake"))}
     # Rustup's proxy binary is not the selected compiler. Include its actual identity.
     tools["rustc"] = subprocess.check_output(["rustc", "-vV"], text=True)
+    if os.environ.get("HYPER_CXX"):
+        tools["HYPER_CXX"] = tool_identity(os.environ["HYPER_CXX"])
     sources = {str(Path(path).resolve()): tree(path) for path in paths}
     return {"format": 1, "sources": sources, "tools": tools,
             "environment": {key: os.environ.get(key) for key in ENVIRONMENT},
