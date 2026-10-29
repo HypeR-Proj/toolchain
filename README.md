@@ -16,7 +16,7 @@ the assembled SDK output and do not reach back into these source directories.
 
 `hyper-cargo doc` generates Rustdoc with the same installed SDK, Native target
 and standard library as application builds. The repository's
-[documentation pipeline](https://github.com/HypeR-Proj/HypeR/blob/main/docs/usage/development/documentation.md) uses it for both supported
+[documentation pipeline](https://hyper-proj.github.io/build/docs/documentation.html) uses it for both supported
 Native architectures.
 
 ## Current scope
@@ -129,7 +129,7 @@ sysroot after a compiler failure, and exclusion of a concurrent publisher.
 `hyper-cargo` selects `aarch64-unknown-hyper` or `riscv64-unknown-hyper` from
 the installed SDK, with ordinary Rust `main()`.
 Set `HYPER_RUST_STD=0` for existing freestanding `hyper_rt::entry!` applications.
-The [Native std guide](https://github.com/HypeR-Proj/rust-std/blob/main/pal/README.md) describes the pinned Rust source
+The [Native std guide](https://github.com/HypeR-Proj/lib-std/blob/main/pal/README.md) describes the pinned Rust source
 overlay, `libhyper-std.a`, supported APIs, and scheduler-backed thread and synchronization integration.
 
 ## Architecture selection
@@ -172,7 +172,7 @@ layouts. The kernel enforces mapping permissions and charges committed pages
 to the process resource domain.
 `std::thread::Builder::stack_size` selects a worker's initial extent. Main and
 worker stacks share the runtime's guarded reservation and explicit growth APIs;
-see [guarded, growable stacks](https://github.com/HypeR-Proj/lib/blob/main/README.md#guarded-growable-stacks) for capacity
+see [guarded, growable stacks](https://github.com/HypeR-Proj/libc/blob/main/README.md#guarded-growable-stacks) for capacity
 and lifetime rules. Applications cannot select kernel thread stack sizes.
 
 ## Workspace tests
@@ -180,8 +180,8 @@ and lifetime rules. Applications cannot select kernel thread stack sizes.
 Use the [HypeR workspace](https://github.com/HypeR-Proj/HypeR) to resolve dependencies:
 
 ```sh
-./HypeR/hyper test toolchain
+python3 project.py test toolchain
 ```
 
-Build paths in detailed documentation refer to the generated `out/system` directory.
+Paths in the documentation are relative to the repo-managed workspace root.
 Edit this repository and prepare the workspace again before building.

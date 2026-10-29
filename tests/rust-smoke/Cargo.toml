@@ -1,9 +1,7 @@
 # SPDX-FileCopyrightText: 2026 roolrz
 # SPDX-License-Identifier: Apache-2.0
 
-bin = [
-    { name = "hyper-rust-smoke", path = "src/main.rs", test = false, bench = false },
-]
+bin = [{name = "hyper-rust-smoke", path = "src/main.rs", test = false, bench = false}]
 
 [package]
 name = "hyper-rust-smoke"
@@ -16,6 +14,8 @@ repository = "https://github.com/HypeR-Proj/toolchain"
 [dependencies]
 hyper-os = "=0.0.0"
 hyper-rt = "=0.0.0"
+
+[profile]
 
 [profile.release]
 panic = "abort"
