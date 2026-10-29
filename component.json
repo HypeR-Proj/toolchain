@@ -11,9 +11,8 @@
   "packages": [],
   "tests": [
     [
-      "make",
-      "toolchain-test",
-      "ARCH=aarch64"
+      "sh",
+      "{component}/tests/module.sh"
     ]
   ]
 }

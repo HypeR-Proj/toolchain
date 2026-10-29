@@ -186,6 +186,12 @@ python3 project.py test toolchain
 Paths in the documentation are relative to the repo-managed workspace root.
 Edit this repository and prepare the workspace again before building.
 
+Automatic module tests validate SDK assembly, exports and installed-SDK consumers
+on AArch64 and RISC-V, in separate jobs feeding the required `module` gate.
+Use `SDK_CI_ARCH=riscv64 python3 project.py test toolchain` for one architecture.
+ABI/library/application source unit tests stay in their owning repositories.
+System verification does not repeat SDK-only checks.
+
 ## Standard C and C++ subset
 
 The workspace SDK also assembles the independent
@@ -202,3 +208,4 @@ compiler and compiler-builtins archive participate in SDK cache validation.
 Both libraries are built inside the same staging transaction as the Native
 runtime, before the SDK is published. Compiler builtins come from the selected
 freestanding Rust target; its license notices remain in the installed SDK.
+
