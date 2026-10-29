@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "name": "toolchain",
+  "kind": "infrastructure",
+  "origin": {
+    "repository": "https://github.com/roolrz/HypeR",
+    "commit": "8d42d047058a2b58a291803700e86487fb723f7a"
+  },
+  "sources": {
+    "Makefile": "sdk/toolchain/Makefile",
+    "README.md": "sdk/toolchain/README.md",
+    "bin/hyper-cargo": "sdk/toolchain/bin/hyper-cargo",
+    "bin/hyper-clang": "sdk/toolchain/bin/hyper-clang",
+    "lib/hyper-native.ld": "sdk/toolchain/lib/hyper-native.ld",
+    "scripts/build-cmake-component.py": "sdk/toolchain/scripts/build-cmake-component.py",
+    "scripts/build-sysroot.sh": "sdk/toolchain/scripts/build-sysroot.sh",
+    "scripts/check-dynamic-loader.sh": "sdk/toolchain/scripts/check-dynamic-loader.sh",
+    "scripts/check-native-elf.py": "sdk/toolchain/scripts/check-native-elf.py",
+    "scripts/check-rust-std.sh": "sdk/toolchain/scripts/check-rust-std.sh",
+    "scripts/check-std-sync.sh": "sdk/toolchain/scripts/check-std-sync.sh",
+    "scripts/check-userspace-loader.sh": "sdk/toolchain/scripts/check-userspace-loader.sh",
+    "scripts/sysroot-state.py": "sdk/toolchain/scripts/sysroot-state.py",
+    "targets/aarch64-unknown-hyper.json.in": "sdk/toolchain/targets/aarch64-unknown-hyper.json.in",
+    "targets/riscv64-unknown-hyper.json.in": "sdk/toolchain/targets/riscv64-unknown-hyper.json.in",
+    "tests/architecture.py": "sdk/toolchain/tests/architecture.py",
+    "tests/bootstrap-link.py": "sdk/toolchain/tests/bootstrap-link.py",
+    "tests/loader-startup.c": "sdk/toolchain/tests/loader-startup.c",
+    "tests/rust-smoke/.cargo/config.toml": "sdk/toolchain/tests/rust-smoke/.cargo/config.toml",
+    "tests/rust-smoke/Cargo.lock": "sdk/toolchain/tests/rust-smoke/Cargo.lock",
+    "tests/rust-smoke/Cargo.toml": "sdk/toolchain/tests/rust-smoke/Cargo.toml",
+    "tests/rust-smoke/src/main.rs": "sdk/toolchain/tests/rust-smoke/src/main.rs",
+    "tests/shared-smoke.c": "sdk/toolchain/tests/shared-smoke.c",
+    "tests/smoke.c": "sdk/toolchain/tests/smoke.c",
+    "tests/std-smoke/.cargo/config.toml": "sdk/toolchain/tests/std-smoke/.cargo/config.toml",
+    "tests/std-smoke/Cargo.lock": "sdk/toolchain/tests/std-smoke/Cargo.lock",
+    "tests/std-smoke/Cargo.toml": "sdk/toolchain/tests/std-smoke/Cargo.toml",
+    "tests/std-smoke/src/bootstrap.rs": "sdk/toolchain/tests/std-smoke/src/bootstrap.rs",
+    "tests/std-smoke/src/cow.rs": "sdk/toolchain/tests/std-smoke/src/cow.rs",
+    "tests/std-smoke/src/files.rs": "sdk/toolchain/tests/std-smoke/src/files.rs",
+    "tests/std-smoke/src/main.rs": "sdk/toolchain/tests/std-smoke/src/main.rs",
+    "tests/std-smoke/src/processes.rs": "sdk/toolchain/tests/std-smoke/src/processes.rs",
+    "tests/std-smoke/src/relay.rs": "sdk/toolchain/tests/std-smoke/src/relay.rs",
+    "tests/std-smoke/src/scheduling.rs": "sdk/toolchain/tests/std-smoke/src/scheduling.rs",
+    "tests/std-smoke/src/stack_workload.rs": "sdk/toolchain/tests/std-smoke/src/stack_workload.rs",
+    "tests/std-smoke/src/virtual_serial.rs": "sdk/toolchain/tests/std-smoke/src/virtual_serial.rs",
+    "tests/std-smoke/src/wait_sets.rs": "sdk/toolchain/tests/std-smoke/src/wait_sets.rs",
+    "tests/sync-host.c": "sdk/toolchain/tests/sync-host.c",
+    "tests/sync-host.rs": "sdk/toolchain/tests/sync-host.rs",
+    "tests/sysroot-publication.sh": "sdk/toolchain/tests/sysroot-publication.sh",
+    "tools/brand-elf.c": "sdk/toolchain/tools/brand-elf.c"
+  },
+  "SPDX-FileCopyrightText": "2026 roolrz",
+  "SPDX-License-Identifier": "Apache-2.0",
+  "mounts": {
+    "": "sdk/toolchain"
+  },
+  "packages": [],
+  "tests": [
+    [
+      "make",
+      "sdk-test"
+    ]
+  ]
+}
