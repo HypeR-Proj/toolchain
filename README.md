@@ -208,4 +208,3 @@ compiler and compiler-builtins archive participate in SDK cache validation.
 Both libraries are built inside the same staging transaction as the Native
 runtime, before the SDK is published. Compiler builtins come from the selected
 freestanding Rust target; its license notices remain in the installed SDK.
-
