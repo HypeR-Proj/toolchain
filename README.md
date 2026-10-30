@@ -185,3 +185,20 @@ python3 project.py test toolchain
 
 Paths in the documentation are relative to the repo-managed workspace root.
 Edit this repository and prepare the workspace again before building.
+
+## Standard C and C++ subset
+
+The workspace SDK also assembles the independent
+[musl](https://github.com/HypeR-Proj/lib-musl) and
+[libc++](https://github.com/HypeR-Proj/lib-cxx) forks. `hyper-cc` and
+`hyper-clang++` provide standard `main` entry points and link the selected
+static libraries with the existing Native runtime. `hyper-clang` retains its
+low-level Native/Rust contract. The forks document their supported APIs;
+unimplemented interfaces fail to compile or link.
+
+Standalone SDK builders can set `MUSL_SOURCE` and `CXX_SOURCE` together. The
+workspace build always supplies both. Their source contents, selected C++
+compiler and compiler-builtins archive participate in SDK cache validation.
+Both libraries are built inside the same staging transaction as the Native
+runtime, before the SDK is published. Compiler builtins come from the selected
+freestanding Rust target; its license notices remain in the installed SDK.

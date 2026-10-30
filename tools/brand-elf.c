@@ -32,12 +32,21 @@ enum {
 	ELF_DYNAMIC_ENTRY_SIZE = 16,
 	ELF_DYNAMIC_NULL = 0,
 	ELF_DYNAMIC_NEEDED = 1,
+	ELF_DYNAMIC_INIT = 12,
+	ELF_DYNAMIC_FINI = 13,
+	ELF_DYNAMIC_INIT_ARRAY = 25,
+	ELF_DYNAMIC_FINI_ARRAY = 26,
+	ELF_DYNAMIC_INIT_ARRAY_SIZE = 27,
+	ELF_DYNAMIC_FINI_ARRAY_SIZE = 28,
+	ELF_DYNAMIC_PREINIT_ARRAY = 32,
+	ELF_DYNAMIC_PREINIT_ARRAY_SIZE = 33,
 };
 
 enum executable_link_mode {
 	LINK_MODE_UNCONSTRAINED,
 	LINK_MODE_STATIC,
 	LINK_MODE_DYNAMIC,
+	LINK_MODE_STANDARD,
 };
 
 struct load_range {
@@ -75,6 +84,9 @@ static int validate_link_mode(FILE *file, const char *path, uint64_t file_size,
 	int has_needed_dependency = 0;
 	int terminated = 0;
 	unsigned char dynamic[ELF_DYNAMIC_ENTRY_SIZE];
+	const int standard = link_mode == LINK_MODE_STANDARD;
+	if (standard)
+		link_mode = interpreter_headers ? LINK_MODE_DYNAMIC : LINK_MODE_STATIC;
 
 	if (link_mode == LINK_MODE_UNCONSTRAINED) {
 		return EXIT_SUCCESS;
@@ -102,6 +114,16 @@ static int validate_link_mode(FILE *file, const char *path, uint64_t file_size,
 			return fail(path, "truncated dynamic table");
 		}
 		const uint64_t tag = read_u64(dynamic);
+		const uint64_t value = read_u64(dynamic + 8);
+		if (standard && value) {
+			if (tag == ELF_DYNAMIC_PREINIT_ARRAY || tag == ELF_DYNAMIC_PREINIT_ARRAY_SIZE)
+				return fail(path, "standard C/C++ executables do not support pre-initialization arrays");
+			if (tag == ELF_DYNAMIC_FINI || tag == ELF_DYNAMIC_FINI_ARRAY || tag == ELF_DYNAMIC_FINI_ARRAY_SIZE)
+				return fail(path, "standard C/C++ executables do not support finalizers");
+			if (link_mode == LINK_MODE_STATIC &&
+			    (tag == ELF_DYNAMIC_INIT || tag == ELF_DYNAMIC_INIT_ARRAY || tag == ELF_DYNAMIC_INIT_ARRAY_SIZE))
+				return fail(path, "static C/C++ executables do not support dynamic global initialization");
+		}
 		if (tag == ELF_DYNAMIC_NULL) {
 			terminated = 1;
 			break;
@@ -336,8 +358,11 @@ int main(int argc, char **argv)
 	if (argc == 3 && strcmp(argv[1], "--check-dynamic") == 0) {
 		return brand(argv[2], 1, LINK_MODE_DYNAMIC);
 	}
+	if (argc == 3 && strcmp(argv[1], "--check-standard") == 0) {
+		return brand(argv[2], 1, LINK_MODE_STANDARD);
+	}
 	{
-		fputs("usage: hyper-brand-elf [--check|--check-static|--check-dynamic] IMAGE\n",
+		fputs("usage: hyper-brand-elf [--check|--check-static|--check-dynamic|--check-standard] IMAGE\n",
 		      stderr);
 		return EXIT_FAILURE;
 	}

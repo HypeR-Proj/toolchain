@@ -15,6 +15,14 @@ dynamic_loader_source=$3
 userspace_loader_source=$4
 rust_source=$5
 output=$6
+musl_source=${HYPER_MUSL_SOURCE:-}
+cxx_source=${HYPER_CXX_SOURCE:-}
+if [ -n "$musl_source$cxx_source" ]; then
+    if [ ! -f "$musl_source/hyper/build.py" ] || [ ! -f "$cxx_source/hyper/build.py" ]; then
+        echo "standard C/C++ support requires both MUSL_SOURCE and CXX_SOURCE" >&2
+        exit 2
+    fi
+fi
 script_directory=$(CDPATH='' cd -- "$(dirname "$0")" && pwd)
 repository=$(CDPATH='' cd -- "$script_directory/.." && pwd)
 
@@ -109,6 +117,20 @@ staged_output=$transaction/sysroot
 # --offline. Cargo's lockfile in rust-src fixes these compiler-library inputs.
 rust_sysroot=$(rustc --print sysroot)
 rust_library="$rust_sysroot/lib/rustlib/src/rust/library/sysroot/Cargo.toml"
+compiler_builtins=
+if [ -n "$musl_source" ]; then
+    compiler_builtins=$(python3 - "$rust_target" <<'PY'
+from pathlib import Path
+import subprocess
+import sys
+directory = Path(subprocess.check_output(['rustc', '--print', 'target-libdir', '--target', sys.argv[1]], text=True).strip())
+archives = list(directory.glob('libcompiler_builtins-*.rlib'))
+if len(archives) != 1:
+    raise SystemExit('install the selected Rust freestanding target to provide compiler builtins')
+print(archives[0])
+PY
+    )
+fi
 if [ ! -f "$rust_library" ]; then
     echo "build-sysroot.sh: rust-src is required for the Native PIC runtime" >&2
     exit 1
@@ -117,10 +139,15 @@ fi
 state_tool=$repository/scripts/sysroot-state.py
 state_inputs=$transaction/inputs.json
 capture_inputs() {
-    python3 "$state_tool" inputs "$1" "$abi_source/Cargo.toml" "$abi_source/src" "$abi_source/include" "$lib_source" \
+    state_destination=$1
+    shift
+    if [ -n "$musl_source" ]; then
+        set -- "$musl_source" "$cxx_source" "$compiler_builtins"
+    fi
+    python3 "$state_tool" inputs "$state_destination" "$abi_source/Cargo.toml" "$abi_source/src" "$abi_source/include" "$lib_source" \
         "$dynamic_loader_source" "$userspace_loader_source" "$rust_source" "$repository" \
         "$rust_sysroot/lib/rustlib/src/rust/library" "$rust_sysroot/share/doc/rust/licenses" \
-        "$rust_sysroot/share/doc/rust/COPYRIGHT-library.html"
+        "$rust_sysroot/share/doc/rust/COPYRIGHT-library.html" "$@"
 }
 capture_inputs "$state_inputs"
 if python3 "$state_tool" check "$output" "$state_inputs"; then
@@ -223,6 +250,19 @@ install -d "$staged_output/share/hyper"
     printf 'rust-bindings=hyper-os-0.0.0\n'
     printf 'abi-revision=%s\n' "$abi_revision"
 } > "$staged_output/share/hyper/manifest"
+if [ -n "$musl_source" ]; then
+    HYPER_CLANG="$compiler" LLVM_AR="$archiver" python3 "$musl_source/hyper/build.py" \
+        --sdk "$staged_output" --output "$output.components/musl" --install
+    HYPER_CXX="${HYPER_CXX:-$compiler}" LLVM_AR="$archiver" python3 "$cxx_source/hyper/build.py" \
+        --sdk "$staged_output" --output "$output.components/cxx" --install
+    # The selected freestanding Rust target already supplies MIT/Apache LLVM
+    # compiler builtins. They also implement Clang's C/C++ arithmetic helpers.
+    # Strip Rust metadata, retaining actual objects and their archive index.
+    cp "$compiler_builtins" "$staged_output/lib/libcompiler-builtins.a"
+    "$archiver" d "$staged_output/lib/libcompiler-builtins.a" lib.rmeta
+    install -m 0755 "$repository/bin/hyper-cc" "$staged_output/bin/hyper-cc"
+    install -m 0755 "$repository/bin/hyper-cc" "$staged_output/bin/hyper-clang++"
+fi
 "$host_compiler" -std=c17 -Wall -Wextra -Werror \
     -I"$abi_source/include" "$repository/tools/brand-elf.c" \
     -o "$staged_output/bin/hyper-brand-elf"
