@@ -22,7 +22,7 @@ if HOST_CC=false sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$4" "
     echo "expected host compiler failure" >&2
     exit 1
 fi
-grep -q 'Installing:.*libhyper.a' "$temporary/failure.log"
+grep -q 'Installing:.*libsystem.a' "$temporary/failure.log"
 test "$(cat "$output/include/obsolete.h")" = 'old header'
 test "$(cat "$output/share/hyper/rust/obsolete.rs")" = 'old Rust SDK file'
 test ! -e "$output/lib"
@@ -34,7 +34,10 @@ fi
 test ! -e "$output/include/obsolete.h"
 test ! -e "$output/share/hyper/rust/obsolete.rs"
 test -f "$output/include/hyper/native.h"
-test -f "$output/lib/libhyper.a"
+test -f "$output/lib/libsystem.a"
+test -f "$output/lib/libsystem.so"
+test ! -e "$output/lib/libhyper.a"
+test ! -e "$output/lib/libhyper.so"
 test -f "$output/lib64/userspace-loader-hyper-${HYPER_ARCH:-aarch64}"
 test -x "$output/bin/hyper-brand-elf"
 test -x "$output/bin/hyper-cargo"
@@ -63,7 +66,7 @@ if PATH="$temporary/bin:$PATH" sh "$repository/scripts/build-sysroot.sh" "$1" "$
     exit 1
 fi
 test "$(cat "$output/rollback-marker")" = preserved
-test -f "$output/lib/libhyper.a"
+test -f "$output/lib/libsystem.a"
 test ! -e "$output.publish-lock"
 # A second publisher must leave the completed output untouched.
 mkdir "$output.publish-lock"
@@ -71,6 +74,6 @@ if sh "$repository/scripts/build-sysroot.sh" "$1" "$2" "$3" "$4" "$5" "$output" 
     echo "concurrent publisher was not rejected" >&2
     exit 1
 fi
-test -f "$output/lib/libhyper.a"
+test -f "$output/lib/libsystem.a"
 rmdir "$output.publish-lock"
 echo "verified sysroot replacement, rollback, and publisher exclusion"

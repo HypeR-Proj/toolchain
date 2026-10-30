@@ -4,7 +4,7 @@
 
 set -eu
 repository=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
-runtime=$repository/../../stdlib/hyper
+runtime=$repository/../../stdlib/system
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/hyper-std-sync.XXXXXX")
 trap 'rm -rf "$temporary"' EXIT
 trap 'exit 130' INT

@@ -132,7 +132,7 @@ if [ "$output_kind" = shared ]; then
         -Wl,-shared,--no-undefined,--fatal-warnings,-z,text,-z,relro,-z,now \
         -Wl,--build-id=none,--gc-sections,-z,noexecstack,-z,max-page-size=4096 \
         -Wl,--hash-style=sysv,--as-needed,--entry=0 \
-        -L"$sysroot/lib" -Wl,-Bdynamic -lhyper
+        -L"$sysroot/lib" -Wl,-Bdynamic -lsystem
 elif [ "$link_mode" = static ]; then
     "$compiler" \
         --target="$target" $architecture_flags --sysroot="$sysroot" -isystem "$sysroot/include" "$linker_option" $architecture_link_flags \
@@ -142,7 +142,7 @@ elif [ "$link_mode" = static ]; then
         -Wl,-static,-pie,--no-dynamic-linker,--no-undefined,--fatal-warnings \
         -Wl,-Bsymbolic,-z,text,--entry=_start \
         -Wl,--build-id=none,--gc-sections,-z,noexecstack,-z,max-page-size=4096 \
-        -Wl,-T,"$linker_script" -L"$sysroot/lib" -lhyper
+        -Wl,-T,"$linker_script" -L"$sysroot/lib" -lsystem
 elif [ "$link_mode" = dynamic ]; then
     "$compiler" \
         --target="$target" $architecture_flags --sysroot="$sysroot" -isystem "$sysroot/include" "$linker_option" $architecture_link_flags \
@@ -153,7 +153,7 @@ elif [ "$link_mode" = dynamic ]; then
         -Wl,--no-undefined,--fatal-warnings,-z,text,-z,relro,-z,now \
         -Wl,--build-id=none,--gc-sections,-z,noexecstack,-z,max-page-size=4096 \
         -Wl,--hash-style=sysv,--entry=_start,--as-needed \
-        -L"$sysroot/lib" -Wl,-Bdynamic -lhyper
+        -L"$sysroot/lib" -Wl,-Bdynamic -lsystem
 else
     echo "hyper-clang: HYPER_LINK_MODE must be dynamic or static" >&2
     exit 2

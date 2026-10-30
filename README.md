@@ -26,15 +26,15 @@ Native architectures.
   `hyper-clang -shared`, and explicitly selectable static PIE linking;
 - assembly from one coherent repository revision;
 - assembly of Native headers, Rust OS-binding crates, CRT objects,
-  `libhyper.a`, `libhyper.so`, the userspace executable loader, the Native
+  `libsystem.a`, `libsystem.so`, the userspace executable loader, the Native
   interpreter, and the linker contract into a sysroot;
 - checked HypeR ELF branding after every application link; and
 - compile-time and link-time consumer smoke tests.
 
 Native images are little-endian ELF64 `ET_DYN` files. Dynamic executables use
 `/lib64/ld-hyper-aarch64.so` or
-`/lib64/ld-hyper-riscv64.so`, eager binding, and `libhyper.so`; static
-images use `libhyper.a` and no interpreter. Both modes reject
+`/lib64/ld-hyper-riscv64.so`, eager binding, and `libsystem.so`; static
+images use `libsystem.a` and no interpreter. Both modes reject
 writable-executable segments and executable stacks. The driver uses LLD and
 links at zero; the userspace loader selects the runtime placement. The driver
 validates the completed image before applying the HypeR OSABI identity.
@@ -94,7 +94,7 @@ compiler libraries.
 ## Component boundaries
 
 - `sdk/abi/` owns machine-visible syscall values and layouts.
-- `stdlib/hyper/` owns Native C runtime semantics.
+- `stdlib/system/` owns Native C runtime semantics.
 - `bootstrap/stage1/userspace-loader/` owns static bootstrap loading.
 - `lib/dynamic-loader/elf/` owns formal ELF mapping and startup stack encoding; bootstrap owns a separate
   implementation below its loader source directory.
@@ -172,7 +172,7 @@ layouts. The kernel enforces mapping permissions and charges committed pages
 to the process resource domain.
 `std::thread::Builder::stack_size` selects a worker's initial extent. Main and
 worker stacks share the runtime's guarded reservation and explicit growth APIs;
-see [guarded, growable stacks](https://github.com/HypeR-Proj/libc/blob/main/README.md#guarded-growable-stacks) for capacity
+see [guarded, growable stacks](https://github.com/HypeR-Proj/lib-system/blob/main/README.md#guarded-growable-stacks) for capacity
 and lifetime rules. Applications cannot select kernel thread stack sizes.
 
 ## Workspace tests

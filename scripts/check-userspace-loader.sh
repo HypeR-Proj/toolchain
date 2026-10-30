@@ -19,7 +19,7 @@ for architecture in aarch64 riscv64; do
         "${HOST_CC:-clang}" -std=c17 -Wall -Wextra -Werror $flags $mode_flags \
             -fsanitize="$sanitizers" -fno-omit-frame-pointer \
             -I "$primitives" \
-            -idirafter "$repository/stdlib/hyper/include" -idirafter "$repository/sdk/abi/include" \
+            -idirafter "$repository/stdlib/system/include" -idirafter "$repository/sdk/abi/include" \
             "$repository/sdk/toolchain/tests/loader-startup.c" -o "$temporary/startup"
         "$temporary/startup"
     done
