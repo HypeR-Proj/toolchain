@@ -218,7 +218,9 @@ install_rust_crate() {
     # Source modules may be nested and may include non-Rust data with
     # include_bytes!/include_str!. Preserve the complete declared src tree;
     # target directories and generation tooling live outside that boundary.
-    cp -R "$source/src/." "$destination/src/"
+    # Prepared workspaces may link source bodies into OUT. Published SDKs must
+    # contain the bodies, never checkout-relative links that break after move.
+    cp -RL "$source/src/." "$destination/src/"
 }
 
 # Rust consumers compile SDK crates with their pinned compiler. Install source
@@ -238,6 +240,7 @@ install_rust_crate "$rust_source/hyper-rt" "$staged_output/share/hyper/rust/hype
 install_rust_crate "$rust_source/hyper-filesystem" "$staged_output/share/hyper/rust/hyper-filesystem"
 
 install -d "$staged_output/share/hyper"
+install -m 0644 "$repository/scripts/native_library.py" "$staged_output/share/hyper/native_library.py"
 {
     printf 'sdk-version=%s\n' "$sdk_version"
     printf 'source-revision=%s\n' "$source_revision"

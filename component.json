@@ -14,5 +14,26 @@
       "sh",
       "{component}/tests/module.sh"
     ]
-  ]
+  ],
+  "build": {
+    "makefile": "mk/build.mk",
+    "actions": {
+      "all": [
+        [
+          "make",
+          "-C",
+          "{workspace}",
+          "sdk"
+        ]
+      ],
+      "build": [
+        [
+          "make",
+          "-C",
+          "{workspace}",
+          "sdk"
+        ]
+      ]
+    }
+  }
 }
