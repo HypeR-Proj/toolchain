@@ -266,7 +266,7 @@ fi
 "$host_compiler" -std=c17 -Wall -Wextra -Werror \
     -I"$abi_source/include" "$repository/tools/brand-elf.c" \
     -o "$staged_output/bin/hyper-brand-elf"
-"$staged_output/bin/hyper-brand-elf" "$staged_output/lib/libhyper.so"
+"$staged_output/bin/hyper-brand-elf" "$staged_output/lib/libsystem.so"
 "$staged_output/bin/hyper-brand-elf" "$staged_output/lib64/ld-hyper-$architecture.so"
 "$staged_output/bin/hyper-brand-elf" "$staged_output/lib64/userspace-loader-hyper-$architecture"
 

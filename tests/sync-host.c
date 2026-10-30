@@ -7,7 +7,7 @@
 #include <time.h>
 
 /* This fixture uses the host allocator, so thread teardown has no Native
- * arena cache to release. The actual heap is covered by libhyper unit tests. */
+ * arena cache to release. The actual heap is covered by libsystem unit tests. */
 size_t hyper_heap_trim(void)
 {
 	return 0;
