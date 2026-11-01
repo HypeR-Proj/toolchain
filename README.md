@@ -193,7 +193,8 @@ Edit this repository and prepare the workspace again before building.
 
 Automatic module tests validate SDK assembly, exports and installed-SDK consumers
 on AArch64 and RISC-V, in separate jobs feeding the required `module` gate.
-Use `SDK_CI_ARCH=riscv64 python3 project.py test toolchain` for one architecture.
+Use `make test MODULE=toolchain ARCH=riscv64` for one architecture. Select the
+architecture at this outer entry point so SDK tests use its prepared build view.
 ABI/library/application source unit tests stay in their owning repositories.
 System verification does not repeat SDK-only checks.
 

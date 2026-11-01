@@ -14,30 +14,32 @@ import unittest
 
 
 class CargoFetchTests(unittest.TestCase):
-    def test_module_architectures_reenter_the_source_workspace_frontend(self):
+    def test_module_consumers_use_the_selected_view_without_reentering_preparation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            view = root / 'generated/aarch64'
-            script = view / 'sdk/toolchain/tests/module.sh'
-            script.parent.mkdir(parents=True)
-            shutil.copyfile(Path(__file__).with_name('module.sh'), script)
-            source = root / 'source workspace'
-            source.mkdir()
             log = root / 'calls.jsonl'
-            binary = root / 'python3'
-            binary.write_text(f'#!{sys.executable}\nimport json,os,sys\n'
-                              f'with open({str(log)!r},"a") as f: f.write(json.dumps('
-                              '{"args":sys.argv[1:],"arch":os.getenv("ARCH")})+"\\n")\n')
-            binary.chmod(0o755)
-            subprocess.run(['sh', str(script)], check=True,
-                           env={**os.environ, 'PATH': str(root) + os.pathsep + os.environ['PATH'],
-                                'HYPER_WORKSPACE': str(source), 'SDK_CI_ARCH': 'aarch64 riscv64'})
-            calls = [json.loads(line) for line in log.read_text().splitlines()]
-            runs = [call for call in calls if call['args'][0] == str(source / 'project.py')]
-            self.assertEqual([call['arch'] for call in runs], ['aarch64', 'riscv64'])
-            for call in runs:
-                self.assertEqual(call['args'][1:], ['--workspace', str(source), 'exec', '--',
-                                                   'make', 'sdk-check', 'app-check', 'app-sdk-test'])
+            for name in ('python3', 'make'):
+                binary = root / name
+                binary.write_text(f'#!{sys.executable}\nimport json,os,sys\n'
+                                  f'with open({str(log)!r},"a") as f: f.write(json.dumps('
+                                  '{"driver":os.path.basename(sys.argv[0]),"args":sys.argv[1:],'
+                                  '"arch":os.getenv("ARCH"),"cwd":os.getcwd()})+"\\n")\n')
+                binary.chmod(0o755)
+            for arch in ('aarch64', 'riscv64'):
+                with self.subTest(architecture=arch):
+                    view = root / 'generated' / arch
+                    script = view / 'sdk/toolchain/tests/module.sh'
+                    script.parent.mkdir(parents=True)
+                    shutil.copyfile(Path(__file__).with_name('module.sh'), script)
+                    log.unlink(missing_ok=True)
+                    subprocess.run(['sh', str(script)], check=True,
+                                   env={**os.environ, 'PATH': str(root) + os.pathsep + os.environ['PATH'],
+                                        'HYPER_WORKSPACE': str(root / 'source'), 'ARCH': arch}, timeout=10)
+                    calls = [json.loads(line) for line in log.read_text().splitlines()]
+                    runs = [call for call in calls if call['driver'] == 'make']
+                    self.assertEqual(runs, [{'driver': 'make', 'arch': arch, 'cwd': str(view.resolve()),
+                                            'args': ['sdk-check', 'app-check', 'app-sdk-test']}])
+                    self.assertFalse(any('project.py' in arg for call in calls for arg in call['args']))
 
     def test_fetch_owns_runtime_lock_and_preserves_offline_requests(self):
         with tempfile.TemporaryDirectory() as directory:
