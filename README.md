@@ -16,8 +16,13 @@ the assembled SDK output and do not reach back into these source directories.
 
 `hyper-cargo doc` generates Rustdoc with the same installed SDK, Native target
 and standard library as application builds. The repository's
-[documentation pipeline](https://hyper-proj.github.io/build/docs/documentation.html) uses it for both supported
+[documentation pipeline](https://hyper-proj.github.io/docs/docs/publishing.html) uses it for both supported
 Native architectures.
+
+`hyper-cargo fetch` prepares both application dependencies and the selected Rust
+runtime workspace. Runtime dependencies use the SDK/toolchain lockfile;
+application lockfiles remain separate. Explicit offline requests also apply to
+the runtime fetch.
 
 ## Current scope
 
@@ -188,7 +193,8 @@ Edit this repository and prepare the workspace again before building.
 
 Automatic module tests validate SDK assembly, exports and installed-SDK consumers
 on AArch64 and RISC-V, in separate jobs feeding the required `module` gate.
-Use `SDK_CI_ARCH=riscv64 python3 project.py test toolchain` for one architecture.
+Use `make test MODULE=toolchain ARCH=riscv64` for one architecture. Select the
+architecture at this outer entry point so SDK tests use its prepared build view.
 ABI/library/application source unit tests stay in their owning repositories.
 System verification does not repeat SDK-only checks.
 
