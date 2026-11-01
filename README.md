@@ -19,6 +19,11 @@ and standard library as application builds. The repository's
 [documentation pipeline](https://hyper-proj.github.io/docs/docs/publishing.html) uses it for both supported
 Native architectures.
 
+`hyper-cargo fetch` prepares both application dependencies and the selected Rust
+runtime workspace. Runtime dependencies use the SDK/toolchain lockfile;
+application lockfiles remain separate. Explicit offline requests also apply to
+the runtime fetch.
+
 ## Current scope
 
 - AArch64 and RV64GC/LP64D freestanding C, `no_std` Rust, and partial Rust `std` compilation with dynamic PIE linking

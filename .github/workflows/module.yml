@@ -36,8 +36,7 @@ jobs:
           name: module-${{ strategy.job-index }}
           path: |
             ${{ runner.temp }}/modules/source-inventory.json
-            ${{ runner.temp }}/modules/target/**/*.log
-            ${{ runner.temp }}/modules/kernel/target/**/*.log
+            ${{ runner.temp }}/modules/out/**/*.log
           if-no-files-found: ignore
   module:
     if: always() && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
