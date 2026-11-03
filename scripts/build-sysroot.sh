@@ -203,7 +203,7 @@ install -m 0644 "$repository/bin/hyper-cargo-diagnostics.py" "$staged_output/bin
 install -d "$staged_output/share/hyper/rust-src" "$staged_output/share/hyper/targets"
 python3 "$repository/scripts/prepare-rust-std.py" \
     "$rust_sysroot/lib/rustlib/src/rust/library" \
-    "$staged_output/share/hyper/rust-src/library" "$repository/rust-std/overlay"
+    "$staged_output/share/hyper/rust-src/library" "$repository/rust-std/overlay" "$abi_source"
 install -m 0644 "$rust_sysroot/share/doc/rust/COPYRIGHT-library.html" \
     "$staged_output/share/hyper/rust-src/COPYRIGHT-library.html"
 cp -R "$rust_sysroot/share/doc/rust/licenses" "$staged_output/share/hyper/rust-src/licenses"
