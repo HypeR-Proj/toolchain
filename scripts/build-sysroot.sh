@@ -4,6 +4,12 @@
 
 set -eu
 
+publication_owned=0
+if [ "${1:-}" = --publication-owned ]; then
+    publication_owned=1
+    shift
+fi
+
 if [ "$#" -ne 6 ]; then
     echo "usage: build-sysroot.sh ABI_SOURCE LIB_SOURCE DYNAMIC_LOADER_SOURCE USERSPACE_LOADER_SOURCE RUST_SOURCE OUTPUT" >&2
     exit 2
@@ -89,11 +95,11 @@ case "$output_name" in
     /|.|..|'') echo "build-sysroot.sh: unsafe output name" >&2; exit 2 ;;
 esac
 output=$output_parent/$output_name
-publication_lock=$output.publish-lock
-if ! mkdir "$publication_lock"; then
-    echo "build-sysroot.sh: could not acquire publication lock $publication_lock" >&2
-    exit 2
+publication_helper=$script_directory/sysroot-publication.py
+if [ "$publication_owned" -eq 0 ]; then
+    exec python3 "$publication_helper" run "$output" sh "$0" --publication-owned "$@"
 fi
+python3 "$publication_helper" verify "$output"
 transaction=
 cleanup() {
     if [ -n "$transaction" ]; then
@@ -104,13 +110,14 @@ cleanup() {
         fi
         rm -rf "$transaction"
     fi
-    rmdir "$publication_lock"
+    python3 "$publication_helper" release "$output"
 }
 trap cleanup EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 transaction=$(mktemp -d "$output_parent/.hyper-sysroot.XXXXXX")
+python3 "$publication_helper" record "$output" "$transaction"
 staged_output=$transaction/sysroot
 
 # Warm the pinned rust-src dependency graph before Native consumers use

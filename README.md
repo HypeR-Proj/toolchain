@@ -123,11 +123,35 @@ An output-specific publication lock rejects concurrent builders; failures before
 publication leave the existing sysroot intact, and handled interruptions during
 replacement restore the previous directory. Consumers should wait for the build
 to finish: the portable directory replacement uses two renames and is not an
-atomic switch for concurrent readers. After an uncatchable termination, inspect
-the sibling transaction directory and publication lock before retrying.
+atomic switch for concurrent readers.
+
+On local POSIX filesystems, the publisher retains an advisory kernel lock across
+the entire build. `<output>.publish-lock/owner.json` records its PID, hostname,
+start time, command, output and staging transaction. The persistent
+`<output>.publish-guard` file is the synchronization inode; never delete or
+replace it. PID existence alone does not establish ownership or safe recovery.
+
+After an uncatchable termination, use these commands from the workspace root
+(substitute the actual SDK output):
+
+```sh
+python3 sdk/toolchain/scripts/sysroot-publication.py inspect out/sdk/aarch64
+python3 sdk/toolchain/scripts/sysroot-publication.py recover out/sdk/aarch64
+```
+
+Inspection reports `active`, `stale` or `idle`; malformed, legacy or foreign-host
+ownership is reported as unknown and requires manual investigation. Recovery
+acquires the same guard as publication, refuses any live owner, and restores the
+previous SDK if termination interrupted the two-rename replacement. It preserves
+the staging transaction and reports its path for inspection, then removes only
+the stale ownership record. It never overwrites an existing output or deletes
+staged/previous SDK data. Do not remove an unknown lock without independently
+stopping its publisher and checking the transaction contents.
 
 `make sdk-check` also verifies stale-file removal, preservation of the previous
 sysroot after a compiler failure, and exclusion of a concurrent publisher.
+Module tests additionally kill real publishers and verify lock ownership,
+recovery exclusion and restoration after an interrupted replacement.
 
 ## Rust std platform support
 
