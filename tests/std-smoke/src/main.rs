@@ -4,6 +4,7 @@
 mod bootstrap;
 mod cow;
 mod files;
+mod memory_contract;
 mod processes;
 mod relay;
 mod scheduling;
@@ -100,6 +101,8 @@ fn main() {
         hyper_rt::process::stderr().is_ok()
             || hyper_rt::process::stderr_stream().unwrap().is_some()
     );
+    let memory_result = memory_contract::run();
+    assert!(memory_result.is_ok(), "memory ABI contract: {memory_result:?}");
     bootstrap::run(startup.borrow(hyper_os::startup::ROOT_VMAR).unwrap());
     let cow_result = startup
         .borrow(hyper_os::startup::ROOT_VMAR)

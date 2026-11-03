@@ -247,3 +247,8 @@ compiler and compiler-builtins archive participate in SDK cache validation.
 Both libraries are built inside the same staging transaction as the Native
 runtime, before the SDK is published. Compiler builtins come from the selected
 freestanding Rust target; its license notices remain in the installed SDK.
+
+SDK preparation supplies the same ABI candidate to the C headers, Rust substrate
+and Rust std PAL. The Native std acceptance probe invokes contiguous VMO creation
+directly to verify wire-level invalid-argument results before checking valid
+allocation and contents; SDK-side input validation cannot mask a kernel error.
