@@ -199,6 +199,7 @@ build_component userspace-loader "$userspace_loader_source" -DHYPER_SYSROOT="$st
 install -d "$staged_output/bin"
 install -m 0755 "$repository/bin/hyper-clang" "$staged_output/bin/hyper-clang"
 install -m 0755 "$repository/bin/hyper-cargo" "$staged_output/bin/hyper-cargo"
+install -m 0644 "$repository/bin/hyper-cargo-diagnostics.py" "$staged_output/bin/hyper-cargo-diagnostics.py"
 install -d "$staged_output/share/hyper/rust-src" "$staged_output/share/hyper/targets"
 python3 "$repository/scripts/prepare-rust-std.py" \
     "$rust_sysroot/lib/rustlib/src/rust/library" \

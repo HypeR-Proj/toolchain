@@ -5,6 +5,7 @@ set -eu
 root=$(CDPATH='' cd -- "$(dirname "$0")/../../.." && pwd)
 cd "$root"
 python3 sdk/toolchain/tests/test_cargo_fetch.py
+python3 sdk/toolchain/tests/test_cargo_diagnostics.py
 python3 sdk/toolchain/tests/test_native_library.py
 python3 sdk/toolchain/tests/test_cmake_incremental.py
 python3 sdk/toolchain/tests/test_publication_ownership.py

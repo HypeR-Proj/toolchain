@@ -115,6 +115,15 @@ compiler libraries.
 Licensed under the Apache License, Version 2.0. See
 [the project license](https://github.com/HypeR-Proj/HypeR/blob/main/LICENSE).
 
+## Cargo diagnostics
+
+`hyper-cargo` summarizes repeated unused installed-SDK patch warnings once per
+Cargo invocation. The summary lists the affected crates and retains the warning
+to check requested versions, features and lockfiles. It does not suppress other
+dependency warnings, compiler diagnostics or machine-readable stdout. Set
+`HYPER_CARGO_PATCH_DIAGNOSTICS=1` to see Cargo's original messages. The driver
+preserves Cargo's exit status and forwards interruption signals.
+
 ## Sysroot publication
 
 Each build installs into a fresh sibling directory before replacing the output.

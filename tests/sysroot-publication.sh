@@ -41,6 +41,7 @@ test ! -e "$output/lib/libhyper.so"
 test -f "$output/lib64/userspace-loader-hyper-${HYPER_ARCH:-aarch64}"
 test -x "$output/bin/hyper-brand-elf"
 test -x "$output/bin/hyper-cargo"
+test -f "$output/bin/hyper-cargo-diagnostics.py"
 test -f "$output/share/hyper/rust/hyper-os/Cargo.toml"
 # Nested source modules must survive SDK publication with their relative paths.
 cmp "$5/hyper-os/src/fs/metadata.rs" \
