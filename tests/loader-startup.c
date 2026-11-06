@@ -28,6 +28,16 @@ const Elf64_Ehdr __ehdr_start = {.type = 2, .phentsize = sizeof(Elf64_Phdr)};
 #endif
 #include <hyper/relocate.h>
 
+/* This fixture exercises startup without the optional kernel image. Mapping
+ * permissions and rollback are covered by lib-system's production helper test. */
+uintptr_t hyper_vdso_map(hyper_native_handle_t root, hyper_native_handle_t image,
+                       hyper_native_handle_t data)
+{
+    (void)root;
+    assert(!image && !data);
+    return 0;
+}
+
 static _Alignas(16) unsigned char file_bytes[16384];
 static _Alignas(16) unsigned char initial_stack[128 * 1024];
 static _Alignas(16) unsigned char packet[MESSAGE_BYTES];
